@@ -53,9 +53,9 @@ after request
 
 You can open the vendor to view the following code changes
 
-vendor/github.com/gin-gonic/gin/gin.go 148 行
+vendor/github.com/gin-gonic/gin/gin.go 148 line
 
-vendor/github.com/gin-gonic/gin/gin.go 482 行
+vendor/github.com/gin-gonic/gin/gin.go 482 line
 
-vendor/github.com/gin-gonic/gin/routergroup.go 86 行
+vendor/github.com/gin-gonic/gin/routergroup.go 86 line
 
