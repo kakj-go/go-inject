@@ -13,10 +13,13 @@ go install github.com/kakj-go/go-inject/tools/toolexec-inject@latest
 
 ### Instructions
 
-#### 创建 inject 方法
+#### create inject method
 
-首先创建一个 inject 目录用于存放注入的代码，然后根据需要创建对应的.go文件, 文件开头需要加入注释 `//inject:github.com/gin-gonic/gin/routergroup.go`注释的内容就是你要拦截的文件
-。代码里面你就可以将对应的文件的函数或者方法粘贴过来并清空方法体。这时候如果是方法由于对象的结构体不在当前包中，所以我们可以定义一个同名的结构体，参数和返回值同理。
+1. create an inject directory to store the injected code. 
+2. create the corresponding .go file as needed. 
+3. .go file add `//inject:github.com/gin-gonic/gin/routergroup.go` note
+4. copy `github.com/gin-gonic/gin/routergroup.go` method code. 
+5. If it is a method, since the structure of the object is not in the current package, we can define a structure with the same name, and the parameters and return values are the same
 
 ```golang
 //inject:github.com/gin-gonic/gin/routergroup.go
@@ -38,23 +41,26 @@ func (group *RouterGroup) POST(relativePath string, handlers ...gin.HandlerFunc)
 }
 ```
 
-> 注意代码的最后一行 return 是不会注入到三方库中
+> Note that the return on the last line of the code will not be injected into the code
 
-> 由于是代码注入的模式，如果在代码中间写 if return 之类的代码会改变原代码的逻辑。这里就可以动态修改三方库的逻辑而不用动源码
+> Due to the code injection mode, writing if,return and other code in the middle of the code will change the logic of the original code. Here, you can dynamically modify the logic of the external library without changing the source code
 
-> 对于有些函数或者方法返回值只有结构体而没有名称的，你可以根据返回值的位置加上对应的 `__injectResult0` 这种名称，具体可以参考 [修改返回值](example%2Fgin-toolexec-inject%2Finject%2Fgin)
+> For some functions or methods that only return a structure without a name, you can add name like `__injectResult0` to use. For details, please refer to [change result name](example%2Fgin-toolexec-inject%2Finject%2Fgin)
 
-> 对于结构体和参数返回值是可以直接用三方库的，前提是三方库吧其暴露出来即可。但是返回值比较特殊，如果返回值的结构体和要注入的包在同一目录这种情况只能自定义了。其原因是上面会动态修改返回值名称
+> For structures and parameter return values, external libraries can be used directly, provided that the external library exposes the structure. However, the return value is quite special. If the structure of the return value and the package to be injected are in the same directory, this situation can only be customized. The reason is that the return value name will be dynamically modified above
 
-> 由于注入的模式是拷贝函数或者方法的 body. 所以在里面使用全局变量是不太行的，但是使用公共包是可行的，因为 import 的包也会注入到三方库中
+> Due to the injection mode being a copy function or method body So using global variables inside is not feasible, but using public packages is feasible because imported packages will also be injected into the library
 
-> 返回值或者结构体如果想访问其私有参数，可以在文件中定义自定义结构体，使用自己的结构体就可以访问了。具体参考 [定义结构体](example%2Fgin-toolexec-inject%2Finject%2Fgin%2Fgin.go)
+> If you want to access the private parameters of a return value or structure, you can define a custom structure in the file and use your own structure to access it. For details, please refer to [structure](example%2Fgin-toolexec-inject%2Finject%2Fgin%2Fgin.go)
 
 
-#### 创建 generate 声明
+#### create generate.go
 
-在 main 方法文件目录下新建 generate.go. 然后 import 中就可以导入三方的注入代码或者自己开发的注入代码。在 package 加入 `//go:generate generate-inject -path ../`
-这行注释。其中 path 是项目目录相对于当前目录的位置
+Create a new generate.go in the main method file directory, and then import external injection library or self-developed injection lib from import
+
+in package add `//go:generate generate-inject -path ../`
+
+path is the location of the project directory relative to the current directory
 
 ```golang
 //go:generate generate-inject -path ../
@@ -66,24 +72,37 @@ import (
 )
 ```
 
-#### 使用 generate-inject 注入代码
-cd 到对应的 main 目录，执行 go generate。然后就可以愉快的玩耍了
+#### use generate-inject inject code
+cd main method file directory
 
-#### 使用 toolexec-inject 注入代码
-cd 到对应的 main 目录, 修改 `go build .` 为 `go build -a -toolexec="toolexec-inject -path ../"`。其中 path 是项目目录相对于当前目录的位置
+run `go generate`
 
-### generate-inject 说明
+#### use toolexec-inject inject code
 
-generate-inject 核心是基于 go generate 的机制动态修改 vendor 代码来实现代码注入的。所以对于 golang src 库是无法注入的。其注入的代码可以在 vendor 对应的文件中看到
+cd main method file directory, change `go build .` to `go build -a -toolexec="toolexec-inject -path ../"`
 
-### toolexec-inject 说明
+path is the location of the project directory relative to the current directory
 
-toolexec-inject 核心是在代码构建的时候加上 -a -toolexec="" 来动态修改编译时候的临时文件来实现的，golang src 库是可以注入的
+### generate-inject core
 
-toolexec 原理说明参考文章: [劫持 Golang 编译](https://www.anquanke.com/post/id/258431)
+The generate-inject core is based on the mechanism of go generate to dynamically modify vendor code to achieve code injection
 
-### 致谢以下仓库提供的灵感
+So it is not possible to inject the Golang src library
 
-[go-build-hijacking](https://github.com/0x2E/go-build-hijacking/tree/main)
+The injected code can be seen in the corresponding file of the vendor
+
+### toolexec-inject core
+
+The core of toolexec inject is to dynamically modify temporary files during compilation by adding `-a - toolexec="toolexec inject"` during code construction
+
+The Golang src library can be injected
+
+The modified code cannot be viewed
+
+toolexec: [劫持 Golang 编译](https://www.anquanke.com/post/id/258431)
+
+### thank
+
+[go-build-hijacking](https://github.com/0x2E/go-build-hijacking)
 
 [skywalking-go](https://github.com/apache/skywalking-go)
