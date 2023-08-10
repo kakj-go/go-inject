@@ -2,6 +2,11 @@
 
 ### 快速开始
 
+```shell
+go install github.com/kakj-go/go-inject/tools/generate-inject@latest
+go install github.com/kakj-go/go-inject/tools/toolexec-inject@latest
+```
+
 [动态修改 vendor 代码](example%2Fgin-generate-inject%2FREADME.md)
 
 [构建时动态修改代码](example%2Fgin-toolexec-inject%2FREADME.md)
