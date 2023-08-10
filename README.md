@@ -80,7 +80,7 @@ generate-inject 核心是基于 go generate 的机制动态修改 vendor 代码�
 
 toolexec-inject 核心是在代码构建的时候加上 -a -toolexec="" 来动态修改编译时候的临时文件来实现的，golang src 库是可以注入的
 
-toolexec 原理说明参考文章: [劫持 Golang 编译](!https://www.anquanke.com/post/id/258431)
+toolexec 原理说明参考文章: [劫持 Golang 编译](https://www.anquanke.com/post/id/258431)
 
 ### 致谢以下仓库提供的灵感
 
