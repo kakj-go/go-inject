@@ -7,7 +7,7 @@ make gin-toolexec-inject-server
 cd example/gin-toolexec-inject/server && ./server
 ```
 
-server 启动后和 [gin-generate-inject/server/server.go](..%2Fgin-generate-inject%2Fserver%2Fserver.go) 的日志相同
+The logs of the server after startup are same like [gin-generate-inject/server/server.go](..%2Fgin-generate-inject%2Fserver%2Fserver.go)
 
 ### client start
 
@@ -16,14 +16,16 @@ make gin-toolexec-inject-client
 cd example/gin-toolexec-inject/client && ./clent
 ```
 
-client 连接后日志和 [gin-generate-inject/client/client.go](..%2Fgin-generate-inject%2Fclient) 的日志不同，变更的日志如下。其原因是对 golang src 库进行了注入
+The client logs will be different
+
+The log of changes is as follows. The reason is that the Golang src library was injected
 
 ```
 req: aaa 
 Response Received: {"message":"hello world change"}
 ```
 
-client 连接后 server 端有以下新日志
+The server has the following new logs after the client
 
 ```
 before request
@@ -31,5 +33,5 @@ before request
 after request
 ```
 
-对应代码注入位置可以看 [inject](inject) 中的代码
+The content of the corresponding code injection can be seen in the code in the [inject](inject)
 

@@ -7,7 +7,7 @@ make gin-generate-inject-server
 cd example/gin-generate-inject/server && ./server
 ```
 
-server 启动后可以看到以下日志, 其注入的内容对应 [generate.go](server%2Fgenerate.go) 中声明的包的内容
+After the server starts, you can see the following log, which injects the contents of the [generate.go](server%2Fgenerate.go)
 
 ```log
 before Default
@@ -35,13 +35,13 @@ make gin-generate-inject-client
 cd example/gin-generate-inject/client && ./clent
 ```
 
-client 日志
+client log
 
 ```
 Response Received: {"message":"hello world"}
 ```
 
-client 连接后 server 端有以下新日志
+The server has the following new logs after the client
 
 ```
 before request
@@ -49,9 +49,9 @@ before request
 after request
 ```
 
-### 代码修改位置
+### Place of code change
 
-可以打开 vendor 看以下代码变更位置
+You can open the vendor to view the following code changes
 
 vendor/github.com/gin-gonic/gin/gin.go 148 行
 
