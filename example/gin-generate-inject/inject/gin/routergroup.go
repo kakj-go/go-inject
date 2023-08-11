@@ -6,10 +6,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type IRoutes interface {
+type RouterGroup struct {
+	Handlers HandlersChain
 }
 
-func (group *RouterGroup) POST(relativePath string, handlers ...gin.HandlerFunc) IRoutes {
+type HandlersChain []HandlerFunc
+
+type HandlerFunc struct{}
+
+func (group *RouterGroup) POST(relativePath string, handlers ...gin.HandlerFunc) (__injectResult0 gin.IRoutes) {
 	fmt.Println("before post")
 	defer fmt.Println("after post")
 	return nil

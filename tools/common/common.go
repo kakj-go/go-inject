@@ -266,7 +266,9 @@ func Gen(path string, afterPath string, packet string, interceptors []*Intercept
 			nodeFunc.Body.List = newBody
 
 			if nodeFunc.Results != nil && interceptor.Results != nil {
-				nodeFunc.Results.List = interceptor.Results.List
+				for index, result := range nodeFunc.Results.List {
+					result.Names = interceptor.Results.List[index].Names
+				}
 			}
 
 			for _, importInfo := range interceptor.Imports {

@@ -50,7 +50,7 @@ func (group *RouterGroup) POST(relativePath string, handlers ...gin.HandlerFunc)
 
 > For some functions or methods that only return a structure without a name, you can add name like `__injectResult0` to use. For details, please refer to [change result name](example%2Fgin-toolexec-inject%2Finject%2Fgin)
 
-> For structures and parameter return values, external libraries can be used directly, provided that the external library exposes the structure. However, the return value is quite special. If the structure of the return value and the package to be injected are in the same directory, this situation can only be customized. The reason is that the return value name will be dynamically modified above
+> For structures and parameter return values, external libraries can be used directly, provided that the external library exposes the structure. 
 
 > Due to the injection mode being a copy function or method body So using global variables inside is not feasible, but using public packages is feasible because imported packages will also be injected into the library
 
