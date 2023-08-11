@@ -10,10 +10,10 @@ gin-toolexec-inject-client:
 	cd example/gin-toolexec-inject && go mod tidy && cd client && go build -a -toolexec="toolexec-inject -path ../"
 
 gin-generate-inject-server:
-	cd example/gin-generate-inject/server  && go generate && go build .
+	cd example/gin-generate-inject/server  && go generate && go build -a .
 
 gin-generate-inject-client:
-	cd example/gin-generate-inject/client && go build .
+	cd example/gin-generate-inject/client && go build -a .
 
 generate-inject:
 	cd tools/generate-inject && go mod tidy && go build -a . && chmod +x generate-inject && mv generate-inject $(GOPATH)/bin/generate-inject

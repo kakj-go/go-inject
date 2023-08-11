@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/gin-gonic/gin v1.9.1
-	github.com/kakj-go/go-inject-trace-contrib v0.0.0-20230810013914-98b9b767aeac
+	github.com/kakj-go/go-inject-trace-contrib v0.0.0-20230811033505-b93ebeebd054
 )
 
 require (
