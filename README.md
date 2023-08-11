@@ -11,7 +11,7 @@ go install github.com/kakj-go/go-inject/tools/toolexec-inject@latest
 
 [toolexec-inject](example%2Fgin-toolexec-inject%2FREADME.md)
 
-### Instructions
+### Documentation
 
 #### create inject method
 
