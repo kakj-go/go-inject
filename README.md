@@ -76,13 +76,15 @@ import (
 ```
 
 #### use generate-inject inject code
-cd main method file directory
+cd `generate.go` file directory
 
 run `go generate`
 
 #### use toolexec-inject inject code
 
-cd main method file directory, change `go build .` to `go build -a -toolexec="toolexec-inject -path ../"`
+cd main method file directory
+
+run `go build -a -toolexec="toolexec-inject -path ../"`
 
 > path is the location of the project directory relative to the build work directory
 
