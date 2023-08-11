@@ -1,5 +1,7 @@
 # go-inject
 
+[中文](README_CN.md)
+
 ### Quick start
 
 ```shell
@@ -16,10 +18,8 @@ go install github.com/kakj-go/go-inject/tools/toolexec-inject@latest
 #### create inject method
 
 1. create an inject directory to store the injected code. 
-2. create the corresponding .go file as needed. 
+2. create the .go file to inject directory. 
 3. .go file add `//inject:github.com/gin-gonic/gin/routergroup.go` note
-4. copy `github.com/gin-gonic/gin/routergroup.go` method code. 
-5. If it is a method, since the structure of the object is not in the current package, we can define a structure with the same name, and the parameters and return values are the same
 
 ```golang
 //inject:github.com/gin-gonic/gin/routergroup.go
@@ -30,9 +30,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// If it is a method, since the structure of the object is not in the current package, 
+// we can define a structure with the same name, and the parameters and return values are the same
 type IRoutes interface {
 }
 
+// copy `github.com/gin-gonic/gin/routergroup.go` method code then remove before method body
 func (group *RouterGroup) POST(relativePath string, handlers ...gin.HandlerFunc) IRoutes {
 	fmt.Println("before POST")
 	defer fmt.Println("after POST")
@@ -58,9 +61,9 @@ func (group *RouterGroup) POST(relativePath string, handlers ...gin.HandlerFunc)
 
 Create a new generate.go in the main method file directory, and then import external injection library or self-developed injection lib from import
 
-in package add `//go:generate generate-inject -path ../`
+in package add `//go:generate generate-inject -path ../` note
 
-path is the location of the project directory relative to the current directory
+> path is the location of the project directory relative to the `go generate` work directory
 
 ```golang
 //go:generate generate-inject -path ../
@@ -81,7 +84,7 @@ run `go generate`
 
 cd main method file directory, change `go build .` to `go build -a -toolexec="toolexec-inject -path ../"`
 
-path is the location of the project directory relative to the current directory
+> path is the location of the project directory relative to the build work directory
 
 ### generate-inject core
 
