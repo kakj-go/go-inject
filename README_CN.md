@@ -8,10 +8,10 @@
 
 ## 安装
 
-本文介绍开发版本的原生 Go 入口。已发布的 `v0.1.0-beta.1` 使用顶层构建命令，不支持这里的新接口。
+使用 Go 1.26 或 1.27 安装 **beta-0.2** 预发布版本：
 
 ```sh
-go install ./cmd/go-inject
+go install github.com/kakj-go/go-inject/cmd/go-inject@v0.1.0-beta.2
 go-inject version
 ```
 

@@ -14,7 +14,7 @@ Each application is a separate Go module. Install [go-inject](../README.md#insta
 
 Gin examples support `v1.11.0` and `v1.12.0`; the two source variants use disjoint minor-version ranges. HTTP services start through `httptest` on automatically assigned ports and close on completion. No external server is needed.
 
-The consumers use a local `replace` to `../rules` so the checkout is immediately editable. The module path remains `github.com/kakj-go/go-inject/examples/rules`. For a published-module consumer, remove that replace and require `v0.1.0-beta.1`.
+The consumers use a local `replace` to `../rules` so the checkout is immediately editable. The module path remains `github.com/kakj-go/go-inject/examples/rules`. For a published-module consumer, remove that replace and require `v0.1.0-beta.2`.
 
 ## Run automated checks
 

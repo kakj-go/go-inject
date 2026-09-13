@@ -14,7 +14,7 @@
 
 Gin 示例支持 `v1.11.0`、`v1.12.0`，两个源码变体采用互斥的次版本区间。HTTP 服务通过 `httptest` 自动分配端口，执行完成后关闭，不需要外部服务。
 
-使用方通过本地 `replace` 指向 `../rules`，方便直接修改仓库源码。模块路径仍然是 `github.com/kakj-go/go-inject/examples/rules`。使用已发布模块时去掉 replace，依赖 `v0.1.0-beta.1`。
+使用方通过本地 `replace` 指向 `../rules`，方便直接修改仓库源码。模块路径仍然是 `github.com/kakj-go/go-inject/examples/rules`。使用已发布模块时去掉 replace，依赖 `v0.1.0-beta.2`。
 
 ## 自动验证
 

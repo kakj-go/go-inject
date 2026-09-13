@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Go module release version (display title for v0.1.0-beta.1 is beta-0.1)
+        description: Go module release version (display title for v0.1.0-beta.2 is beta-0.2)
         required: true
-        default: v0.1.0-beta.1
+        default: v0.1.0-beta.2
         type: string
 
 # This workflow only uploads Actions artifacts. Publication is a separate action.

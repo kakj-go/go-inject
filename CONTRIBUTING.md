@@ -27,6 +27,6 @@ Do not add compatibility aliases for removed experimental interfaces. Do not mak
 
 ## Releases
 
-The first beta is displayed as `beta-0.1` and versioned `v0.1.0-beta.1`. The tool installs from `github.com/kakj-go/go-inject/cmd/go-inject`. The nested reusable rules module is separately tagged `examples/rules/v0.1.0-beta.1`; consumers require `github.com/kakj-go/go-inject/examples/rules v0.1.0-beta.1`.
+The current beta is displayed as `beta-0.2` and versioned `v0.1.0-beta.2`. The tool installs from `github.com/kakj-go/go-inject/cmd/go-inject`. The nested reusable rules module is separately tagged `examples/rules/v0.1.0-beta.2`; consumers require `github.com/kakj-go/go-inject/examples/rules v0.1.0-beta.2`.
 
-Publishing a release requires the release workflow and its platform/toolchain acceptance results. Update [CHANGELOG.md](CHANGELOG.md) for user-visible changes.
+Update [CHANGELOG.md](CHANGELOG.md), installation examples, and release defaults together. Verify the final master commit with source CI and clean remote installation by SHA. Run the release-artifacts workflow and require all twelve native binary/toolchain checks to pass. Tag both modules at that commit without moving existing tags, upload those exact archives and checksums to a draft prerelease, and verify installation by tag before publication. Verify the public downloads after publishing.
