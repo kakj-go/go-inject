@@ -35,7 +35,7 @@ func (e *engine) applyFunctions(rule *template) error {
 		key := functionName(fn)
 		var candidates []*functionDecl
 		for _, candidate := range e.functions[key] {
-			if candidate.file == targetFile {
+			if candidate.file == targetFile || rule.rule.Target == "main" {
 				candidates = append(candidates, candidate)
 			}
 		}
@@ -113,29 +113,44 @@ func bindReceiverTypes(ctx *typeContext, fn *dst.FuncDecl) {
 }
 
 func (e *engine) checkSignature(rule *template, fn *dst.FuncDecl, target *functionDecl) error {
+	left, right, err := e.signaturePair(rule, fn, target)
+	if err != nil {
+		return err
+	}
+	if rule.rule.Bindings != nil {
+		proof, ok := rule.rule.Bindings["func:"+functionName(fn)]
+		if !ok || proof.Template != left || proof.Target != right {
+			return fmt.Errorf("rule %s: signature changed after semantic binding for %s", rule.id, functionName(fn))
+		}
+		return nil
+	}
+	if left != right {
+		return fmt.Errorf("rule %s: signature mismatch for %s: template %s; target %s", rule.id, functionName(fn), left, right)
+	}
+	return nil
+}
+
+func (e *engine) signaturePair(rule *template, fn *dst.FuncDecl, target *functionDecl) (string, string, error) {
 	leftCtx, rightCtx := e.typeContext(rule.file), e.typeContext(target.file)
 	bindReceiverTypes(leftCtx, fn)
 	bindReceiverTypes(rightCtx, target.fn)
 	left, err := leftCtx.function(fn.Type)
 	if err != nil {
-		return fmt.Errorf("rule %s signature: %w", rule.id, err)
+		return "", "", fmt.Errorf("rule %s signature: %w", rule.id, err)
 	}
 	right, err := rightCtx.function(target.fn.Type)
 	if err != nil {
-		return fmt.Errorf("target %s signature: %w", target.file.path, err)
+		return "", "", fmt.Errorf("target %s signature: %w", target.file.path, err)
 	}
 	leftRecv, err := leftCtx.fields(fn.Recv)
 	if err != nil {
-		return err
+		return "", "", err
 	}
 	rightRecv, err := rightCtx.fields(target.fn.Recv)
 	if err != nil {
-		return err
+		return "", "", err
 	}
-	if left != right || leftRecv != rightRecv {
-		return fmt.Errorf("rule %s: signature mismatch for %s: template %s %s; target %s %s", rule.id, functionName(fn), leftRecv, left, rightRecv, right)
-	}
-	return nil
+	return leftRecv + " " + left, rightRecv + " " + right, nil
 }
 
 func bindTarget(target *functionDecl) {

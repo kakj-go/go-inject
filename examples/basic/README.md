@@ -6,8 +6,8 @@ This module changes the application's `Quote` function with a [local rule](injec
 
 ```sh
 go mod tidy
-go-inject test .
-go-inject build -work -o basic .
+go test -toolexec="go-inject" .
+go build -toolexec="go-inject" -work -o basic .
 ./basic
 ```
 
@@ -22,4 +22,4 @@ quote=35 early=0
 
 Without injection, `Quote(2)` returns `20` and `Quote(-1)` returns `-10`. The rule's final top-level `return 0` is removed; its conditional return remains. The tests also verify zero input. See [inject.go](inject.go) for entry-specific registration.
 
-Use the session path printed by `-work` with `go-inject inspect --json <directory>` to review the generated code. This example modifies application source in the build session; the third-party source delivery example is [Gin vendor](../gin/README.md).
+Run `go-inject inspect --json` in this directory after `-work` to review the latest retained generated code, including cache hits. This example modifies application source in the build session; the third-party source delivery example is [Gin vendor](../gin/README.md).

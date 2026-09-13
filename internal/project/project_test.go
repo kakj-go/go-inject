@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
-	"strings"
 	"testing"
 )
 
@@ -112,8 +111,8 @@ func TestResolveArgsChdirPersistentFlagsAndOverrides(t *testing.T) {
 		t.Fatal("misplaced -C accepted")
 	}
 	t.Setenv("GOFLAGS", "-toolexec=unwanted-command")
-	if _, _, _, err := ResolveArgs(context.Background(), dir, nil); err == nil || !strings.Contains(err.Error(), "managed") {
-		t.Fatalf("GOFLAGS tool override = %v", err)
+	if _, flags, _, err := ResolveArgs(context.Background(), dir, nil); err != nil || Has(flags, "toolexec") {
+		t.Fatalf("parent hook was not removed from internal Go flags: %v %v", flags, err)
 	}
 }
 

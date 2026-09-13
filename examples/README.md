@@ -28,4 +28,4 @@ python examples/check.py gin external --gin-version v1.12.0 --tool ./go-inject
 
 On Windows, build and pass `./go-inject.exe`. `GOINJECT_BINARY` is an alternative to `--tool`. The Python 3.10+ runner only uses the standard library. It operates on disposable copies, checks binaries and tests, exercises Gin vendor generation/restoration, and checks rejection of standard-library vendor rules. Failures retain their workspace; `--keep-work` does so after success too.
 
-The tests assert injected behavior and should be run with `go-inject test .`. Ordinary `go test .` deliberately lacks those effects, except after Gin source has been generated into vendor. Root `go test ./...` does not include nested modules.
+The tests assert injected behavior and should be run with `go test -toolexec="go-inject" .`. Ordinary `go test .` deliberately lacks those effects, except after Gin source has been generated into vendor. Root `go test ./...` does not include nested modules.

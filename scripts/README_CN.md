@@ -15,6 +15,7 @@
 
 ```sh
 python scripts/check_repository.py
+python scripts/check_snippets.py
 python -m unittest discover -s scripts -p 'test_*.py'
 ```
 

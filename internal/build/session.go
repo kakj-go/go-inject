@@ -35,6 +35,9 @@ type Session struct {
 	Overlay                                                              map[string]string
 	Needs                                                                []string
 	UseCacheSnapshots                                                    bool
+	Native                                                               bool
+	ToolFingerprint                                                      string
+	Business                                                             map[string]bool
 }
 type Record struct {
 	Package  string
@@ -43,6 +46,7 @@ type Record struct {
 	Result   *rewrite.Result
 }
 type Report struct {
+	Session                                           string
 	Format                                            int
 	Entry, Kind, GoVersion, GOOS, GOARCH, Fingerprint string
 	Rules                                             []rules.Status
@@ -128,11 +132,20 @@ func (s *Session) RulesFor(pkg string) []rewrite.Rule {
 }
 
 func Prepare(ctx context.Context, env project.Env, root *project.Package, flags []string, kind string) (s *Session, err error) {
+	return prepare(ctx, env, root, flags, kind, false)
+}
+
+func PrepareNative(ctx context.Context, env project.Env, root *project.Package, flags []string, kind string) (*Session, error) {
+	return prepare(ctx, env, root, flags, kind, true)
+}
+
+func prepare(ctx context.Context, env project.Env, root *project.Package, flags []string, kind string, native bool) (s *Session, err error) {
 	dir, err := os.MkdirTemp("", "go-inject-")
 	if err != nil {
 		return nil, err
 	}
 	s = &Session{Dir: dir, Kind: kind, RootPath: root.Base(), Root: root, Env: env, Flags: append([]string{}, flags...), Overlay: map[string]string{}}
+	s.Native = native
 	s.EntryArgs = []string{root.Base()}
 	if len(root.EntryFiles) > 0 {
 		s.EntryArgs = append([]string{}, root.EntryFiles...)
@@ -180,6 +193,17 @@ func Prepare(ctx context.Context, env project.Env, root *project.Package, flags 
 		return nil, err
 	}
 	s.Packages = project.Index(pkgs)
+	s.Business = make(map[string]bool, len(s.Packages))
+	for name := range s.Packages {
+		s.Business[name] = true
+	}
+	if kind == "test" {
+		for _, p := range pkgs {
+			if p.ForTest == root.Base() {
+				s.Packages[p.Base()] = p
+			}
+		}
+	}
 	if p := s.Packages[root.Base()]; p != nil {
 		s.Root = p
 	}
@@ -194,6 +218,15 @@ func Prepare(ctx context.Context, env project.Env, root *project.Package, flags 
 	}
 	s.Rules = set.Files
 	s.Statuses = set.Statuses
+	if kind == "vendor" {
+		for _, rule := range s.Rules {
+			target := rules.TargetPackage(rule.Target)
+			p := s.Packages[target]
+			if target == "main" || p == nil || p.Standard || p.Module == nil || p.Module.Main {
+				return nil, fmt.Errorf("vendor does not support target %s (rule %s); use go build -toolexec=go-inject", rule.Target, rule.Path)
+			}
+		}
+	}
 	imports := map[string]bool{}
 	for _, r := range s.Rules {
 		n, e := parser.ParseFile(token.NewFileSet(), r.Path, r.Source, parser.ImportsOnly)
@@ -228,6 +261,9 @@ func Prepare(ctx context.Context, env project.Env, root *project.Package, flags 
 	for i := range s.Rules {
 		s.Rules[i].ImportNames = names
 	}
+	if err = s.bindRules(ctx, listFlags); err != nil {
+		return nil, err
+	}
 	// All generated dependencies are seeded before Go builds its action graph.
 	// The coordinator still resolves imports encountered during actual compilation.
 	needs := map[string]bool{}
@@ -238,7 +274,14 @@ func Prepare(ctx context.Context, env project.Env, root *project.Package, flags 
 	for target := range targets {
 		var src []rewrite.Source
 		if target == "main" {
-			src = []rewrite.Source{{Path: filepath.Join(s.Root.Dir, "goinject_entry.go"), Data: []byte("package main\nfunc main() {}\n"), ImportNames: names}}
+			if kind == "test" {
+				src = []rewrite.Source{{Path: filepath.Join(s.Root.Dir, "_testmain.go"), Data: []byte("package main\nfunc main() {}\n"), ImportNames: names}}
+			} else {
+				src, err = Sources(s.Root, s.Overlay, names)
+				if err != nil {
+					return nil, err
+				}
+			}
 		} else {
 			p := s.Packages[target]
 			if p == nil {
@@ -249,7 +292,11 @@ func Prepare(ctx context.Context, env project.Env, root *project.Package, flags 
 				return nil, err
 			}
 		}
-		result, e := rewrite.Package(target, src, s.RulesFor(target))
+		bindingPath := target
+		if target == "main" {
+			bindingPath = s.RootPath
+		}
+		result, e := rewrite.Package(bindingPath, src, s.RulesFor(target))
 		if e != nil {
 			return nil, fmt.Errorf("target %s version %q: %w", target, packageVersion(s.Packages[target]), e)
 		}
@@ -298,35 +345,6 @@ func Prepare(ctx context.Context, env project.Env, root *project.Package, flags 
 	sort.Strings(s.Needs)
 	if err = s.checkCycles(ctx, listFlags); err != nil {
 		return nil, err
-	}
-	if kind != "vendor" && len(s.Needs) > 0 {
-		name := "zz_goinject_dependencies.go"
-		pkg := s.Root.Name
-		if kind == "test" {
-			name = "zz_goinject_dependencies_test.go"
-			pkg += "_test"
-		}
-		logical := filepath.Join(s.Root.Dir, name)
-		if _, e := os.Stat(logical); e == nil {
-			return nil, fmt.Errorf("generated bootstrap path already exists: %s", logical)
-		}
-		var b strings.Builder
-		fmt.Fprintf(&b, "package %s\nimport (\n", pkg)
-		for _, p := range s.Needs {
-			if !canSeedImport(s.RootPath, p) {
-				continue
-			}
-			fmt.Fprintf(&b, "_ %q\n", p)
-		}
-		b.WriteString(")\n")
-		physical := filepath.Join(dir, name)
-		if err = os.WriteFile(physical, []byte(b.String()), 0600); err != nil {
-			return nil, err
-		}
-		s.Overlay[logical] = physical
-		if len(root.EntryFiles) > 0 {
-			s.EntryArgs = append(s.EntryArgs, logical)
-		}
 	}
 	// Include local helper source changes; no ephemeral session paths enter the fingerprint.
 	fp := sha256.New()
@@ -431,6 +449,36 @@ func (s *Session) writeRecord(r Record, cache bool) error {
 	return jsonWrite(filepath.Join(base, hash([]byte(r.Package))+".json"), r)
 }
 func (s *Session) records() ([]Record, error) { return s.readRecords(true) }
+
+func (s *Session) PlannedResults() (map[string]*rewrite.Result, error) {
+	r, err := s.readRecords(true)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]*rewrite.Result{}
+	for _, record := range r {
+		out[record.Package] = record.Result
+	}
+	return out, nil
+}
+
+func (s *Session) ReplicateRecord(from, identity string) error {
+	data, err := os.ReadFile(filepath.Join(from, "records", hash([]byte(identity))+".json"))
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var record Record
+	if err = json.Unmarshal(data, &record); err != nil {
+		return err
+	}
+	if err = s.writeRecord(record, false); err != nil {
+		return err
+	}
+	return s.writeRecord(record, true)
+}
 func (s *Session) readRecords(includePlan bool) ([]Record, error) {
 	m := map[string]Record{}
 	var bases []string
@@ -510,7 +558,7 @@ func (s *Session) Finish() error {
 			}
 		}
 	}
-	return jsonWrite(filepath.Join(s.Dir, "report.json"), Report{Format: 1, Entry: s.RootPath, Kind: s.Kind, GoVersion: s.Env.GOVERSION, GOOS: s.Env.GOOS, GOARCH: s.Env.GOARCH, Fingerprint: s.Fingerprint, Rules: s.Statuses, Packages: actual})
+	return jsonWrite(filepath.Join(s.Dir, "report.json"), Report{Session: s.Dir, Format: 1, Entry: s.RootPath, Kind: s.Kind, GoVersion: s.Env.GOVERSION, GOOS: s.Env.GOOS, GOARCH: s.Env.GOARCH, Fingerprint: s.Fingerprint, Rules: s.Statuses, Packages: actual})
 }
 
 func (s *Session) SnapshotValid() bool {
@@ -612,6 +660,9 @@ func splitSymbol(symbol string) (string, string, error) {
 	return symbol[:i], symbol[i+1:], nil
 }
 func (s *Session) validateLink(ctx context.Context, l rewrite.Link, flags []string) error {
+	if l.Checked {
+		return nil
+	}
 	p, name, e := splitSymbol(l.Symbol)
 	if e != nil {
 		return e

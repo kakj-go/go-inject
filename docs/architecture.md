@@ -6,6 +6,10 @@ go-inject is a source transformation and build tool. Its public contract is Go i
 
 ## Pipeline and boundaries
 
+The public entry points are native Go commands: `go build -toolexec="go-inject"` (and `go test`) and `go generate` for vendor generation. The compiler proxy discovers its parent Go invocation and starts a local build session itself. Registration files use `//go:build goinject || generate`; no registration tag is enabled in business compilation.
+
+This replaces the beta.1 top-level build driver. One native Go invocation shares dependency compilation actions: entries requiring different generated source for a shared package are rejected and must be built separately. Compatible selections share their compilation. Vendor state must be portable between checkouts, and its full validation and first directory delivery belong to the same transaction boundary.
+
 ```text
 Go command flags and entries
             ↓
@@ -41,7 +45,7 @@ The **business graph** comes from the requested application entry, without enabl
 
 The **generated build graph** includes imports actually needed by generated source and initialization. It must have complete compiler and linker inputs, valid initialization, and no cycles. Source insertion after Go has scheduled its build cannot be treated as merely adding a line to `importcfg`.
 
-Selections belong to entries. Different entries may select different rules for the same package; build sessions isolate the resulting source. A physical vendor tree has one result, so incompatible entry results are rejected.
+Selections belong to entries. Separate Go invocations isolate different entry selections. Within one native invocation, differing shared-package results are rejected. A physical vendor tree has one result, so incompatible entry results are rejected.
 
 ## Source semantics
 

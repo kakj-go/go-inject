@@ -8,8 +8,8 @@ The reusable rule intercepts private `Engine.handleHTTPRequest`, reads private `
 
 ```sh
 go mod tidy
-go-inject test .
-go-inject build -work -o gin-example .
+go test -toolexec="go-inject" .
+go build -toolexec="go-inject" -work -o gin-example .
 ./gin-example
 ```
 
@@ -24,14 +24,14 @@ PASS gin: private method, private field, added field, helper, order, variant
 ## Native Go with vendor
 
 ```sh
-go-inject vendor .
+go generate .
 go test -mod=vendor .
 go build -mod=vendor -o gin-example .
 ./gin-example
 go-inject vendor --restore
 ```
 
-Open `vendor/github.com/gin-gonic/gin` to see the actual generated source. Repeating `go-inject vendor .` must not duplicate injection. `--restore` restores the recorded original vendor state and refuses to discard subsequent user edits.
+Open `vendor/github.com/gin-gonic/gin` to see the actual generated source. Repeating `go generate .` must not duplicate injection. `--restore` restores the recorded original vendor state and refuses to discard subsequent user edits.
 
 ## Version variants
 
@@ -40,7 +40,7 @@ The checked-in module selects Gin `v1.11.0`. To exercise the other supported bas
 ```sh
 go get github.com/gin-gonic/gin@v1.12.0
 go mod tidy
-go-inject test .
+go test -toolexec="go-inject" .
 ```
 
 Restore any generated vendor tree before changing dependency versions. The aggregate selects exactly one of [v111](../rules/gin/v111/gin.go) and [v112](../rules/gin/v112/gin.go), based on the target module version. The test reads `gin.Version` and checks the selected variant's header.

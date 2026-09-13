@@ -18,7 +18,7 @@ func pendingChange(t *testing.T, w *workspace, outputs map[string][]byte) *journ
 	if err != nil {
 		t.Fatal(err)
 	}
-	next := &manifest{Version: stateVersion, Root: w.root, Fingerprint: "interrupted", Files: make(map[string]record)}
+	next := &manifest{Version: stateVersion, Root: ".", Fingerprint: "interrupted", Files: make(map[string]record)}
 	if old != nil {
 		for rel, entry := range old.Files {
 			next.Files[rel] = entry

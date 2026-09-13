@@ -2,7 +2,7 @@
 
 [English](CONTRIBUTING.md)
 
-使用 Go 1.26 及以上。先阅读[架构](docs/architecture_CN.md)、[规则契约](docs/rules_CN.md)和[测试](docs/testing_CN.md)。
+使用 Go 1.26 或 1.27。先阅读[架构](docs/architecture_CN.md)、[规则契约](docs/rules_CN.md)和[测试](docs/testing_CN.md)。
 
 修改前检查 `git status`，保留无关变更。选择满足契约的最简单实现，优先复用既有 Go 依赖。后端源码文件保持在 2,000 行以内，架构边界变化需要同步文档。
 

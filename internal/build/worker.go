@@ -43,7 +43,7 @@ func Worker(ctx context.Context, args []string) error {
 	}
 	s, e := ReadSession(os.Getenv(SessionEnv))
 	if e != nil {
-		return fmt.Errorf("go-inject internal session: %w; use go-inject build/test", e)
+		return fmt.Errorf("go-inject internal session: %w; invoke the public tool with go build/test -toolexec=go-inject", e)
 	}
 	for _, a := range args[1:] {
 		if a == "-V=full" {
@@ -51,11 +51,21 @@ func Worker(ctx context.Context, args []string) error {
 			if e != nil {
 				return e
 			}
-			fmt.Printf("%s go-inject=%s\n", bytes.TrimSpace(out), s.Fingerprint)
+			fp := s.ToolFingerprint
+			if fp == "" {
+				fp = s.Fingerprint
+			}
+			fmt.Printf("%s go-inject=%s\n", bytes.TrimSpace(out), fp)
 			return nil
 		}
 	}
 	kind := strings.TrimSuffix(filepath.Base(args[0]), ".exe")
+	if s.Native && (kind == "compile" || kind == "cgo") {
+		args, e = s.nativeBaselineArgs(args, kind)
+		if e != nil {
+			return e
+		}
+	}
 	if kind == "compile" {
 		args, e = s.compile(ctx, args)
 		if e != nil {
@@ -81,10 +91,18 @@ func Worker(ctx context.Context, args []string) error {
 			if err = json.Unmarshal(data, &r); err != nil {
 				return err
 			}
-			return s.writeRecord(r, true)
+			if err := s.writeRecord(r, true); err != nil {
+				return err
+			}
 		} else if !os.IsNotExist(err) {
 			return err
 		}
+	}
+	if s.Native && (kind == "link" || kind == "compile" && strings.Split(os.Getenv("TOOLEXEC_IMPORTPATH"), " [")[0] == s.RootPath) {
+		if err := s.Finish(); err != nil {
+			return err
+		}
+		return s.Complete()
 	}
 	return nil
 }
@@ -150,6 +168,17 @@ func (s *Session) compile(ctx context.Context, args []string) ([]string, error) 
 		}
 		if result.Additions == nil {
 			result.Additions = map[string][]byte{}
+		}
+		if s.Native && len(s.Needs) > 0 {
+			var bootstrap strings.Builder
+			bootstrap.WriteString("package main\nimport (\n")
+			for _, dep := range s.Needs {
+				if canSeedImport(s.RootPath, dep) {
+					fmt.Fprintf(&bootstrap, "_ %q\n", dep)
+				}
+			}
+			bootstrap.WriteString(")\n")
+			result.Additions["goinject_dependencies.go"] = []byte(bootstrap.String())
 		}
 		for _, r := range records {
 			if r.Package == "main" || r.Package == pkg {

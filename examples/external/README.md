@@ -8,8 +8,8 @@ The application uses Gin `v1.12.0`. The Gin aggregate imports two candidates wit
 
 ```sh
 go mod tidy
-go-inject test .
-go-inject build -work -o external-example .
+go test -toolexec="go-inject" .
+go build -toolexec="go-inject" -work -o external-example .
 ./external-example
 ```
 

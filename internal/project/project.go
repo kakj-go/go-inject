@@ -55,6 +55,11 @@ func Command(ctx context.Context, dir string, args ...string) *exec.Cmd {
 	c := exec.CommandContext(ctx, "go", args...)
 	c.Dir = canonicalDirectory(dir)
 	c.Env = commandEnvironment(c.Dir, os.Environ())
+	// Internal Go queries/builds receive their effective flags explicitly. In
+	// particular they must not recursively bootstrap the parent's GOFLAGS hook.
+	if len(args) == 0 || args[0] != "env" {
+		c.Env = append(c.Env, "GOFLAGS= ")
+	}
 	return c
 }
 

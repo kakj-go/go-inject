@@ -16,6 +16,7 @@ import tempfile
 
 
 EXAMPLES = ("basic", "http", "gin", "external")
+TOOL_DIRECTORY = ""
 
 
 def run(args: list[str], cwd: Path, *, success: bool = True) -> str:
@@ -23,7 +24,8 @@ def run(args: list[str], cwd: Path, *, success: bool = True) -> str:
     result = subprocess.run(
         args,
         cwd=cwd,
-        env={**os.environ, "GOWORK": "off", "TMPDIR": temporary, "TMP": temporary, "TEMP": temporary},
+        env={**os.environ, "GOWORK": "off", "TMPDIR": temporary, "TMP": temporary, "TEMP": temporary,
+             "PATH": TOOL_DIRECTORY + os.pathsep + os.environ.get("PATH", "")},
         text=True,
         encoding="utf-8",
         errors="replace",
@@ -51,12 +53,9 @@ def digest(directory: Path) -> dict[str, str]:
 
 
 def assert_program(tool: str, directory: Path, output: Path, name: str) -> None:
-    build_output = run([tool, "build", "-work", "-o", str(output), "."], directory)
-    marker = re.search(r"(?m)^GOINJECT_WORK=(.+)$", build_output)
-    if marker is None:
-        raise RuntimeError(f"{name}: -work did not report GOINJECT_WORK=<directory>:\n{build_output}")
-    session = marker.group(1).strip().strip('"')
-    inspection = run([tool, "inspect", "--json", session], directory)
+    flags = ["-a"] if name == "basic" else []
+    run(["go", "build", '-toolexec="' + tool + '"', *flags, "-work", "-o", str(output), "."], directory)
+    inspection = run([tool, "inspect", "--json"], directory)
     report = json.loads(inspection)
     if not any(rule.get("State") == "selected" for rule in report.get("Rules", [])):
         raise RuntimeError(f"{name}: inspection did not contain a selected rule")
@@ -74,11 +73,11 @@ def check_vendor(tool: str, directory: Path, output: Path) -> None:
     run(["go", "mod", "vendor"], directory)
     baseline = digest(directory / "vendor")
     module_files = {name: (directory / name).read_bytes() for name in ("go.mod", "go.sum")}
-    run([tool, "vendor", "."], directory)
+    run(["go", "generate", "."], directory)
     once = digest(directory / "vendor")
     if once == baseline:
         raise RuntimeError("gin: vendor did not change any source")
-    run([tool, "vendor", "."], directory)
+    run(["go", "generate", "."], directory)
     if digest(directory / "vendor") != once:
         raise RuntimeError("gin: repeated vendor injection changed the result")
     run(["go", "test", "-mod=vendor", "."], directory)
@@ -95,6 +94,7 @@ def check_vendor(tool: str, directory: Path, output: Path) -> None:
 
 
 def main() -> int:
+    global TOOL_DIRECTORY
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("examples", nargs="*", choices=EXAMPLES)
     parser.add_argument("--tool", default=os.environ.get("GOINJECT_BINARY", "go-inject"))
@@ -106,6 +106,7 @@ def main() -> int:
     if tool is None:
         parser.error("go-inject was not found; pass --tool or set GOINJECT_BINARY")
     tool = str(Path(tool).resolve())
+    TOOL_DIRECTORY = str(Path(tool).parent)
     work = Path(tempfile.mkdtemp(prefix="go-inject-examples-"))
     try:
         source = Path(__file__).resolve().parent
@@ -123,14 +124,14 @@ def main() -> int:
             if args.gin_version and name in ("gin", "external"):
                 run(["go", "get", "github.com/gin-gonic/gin@" + args.gin_version], directory)
             run(["go", "mod", "tidy"], directory)
-            run([tool, "test", "."], directory)
+            run(["go", "test", '-toolexec="' + tool + '"', "."], directory)
             binary = binary_dir / (name + (".exe" if os.name == "nt" else ""))
             assert_program(tool, directory, binary, name)
             if name == "gin" and not args.no_vendor:
                 check_vendor(tool, directory, binary)
-            if name in ("http", "external") and not args.no_vendor:
+            if name in ("basic", "http", "external") and not args.no_vendor:
                 before = digest(directory)
-                run([tool, "vendor", "."], directory, success=False)
+                run(["go", "generate", "."], directory, success=False)
                 if digest(directory) != before:
                     raise RuntimeError(f"{name}: rejected standard-library vendor request changed project files")
             print(f"PASS {name}", flush=True)

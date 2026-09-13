@@ -165,6 +165,22 @@ func declarationNames(decl dst.Decl) []string {
 }
 
 func (e *engine) addDeclaration(rule *template, decl dst.Decl) error {
+	if _, function := decl.(*dst.FuncDecl); !function {
+		var invalid bool
+		dst.Inspect(decl, func(n dst.Node) bool {
+			if n != nil {
+				for _, comment := range n.Decorations().Start {
+					if strings.HasPrefix(comment, "//go:linkname ") {
+						invalid = true
+					}
+				}
+			}
+			return true
+		})
+		if invalid {
+			return fmt.Errorf("rule %s: go:linkname bridges require non-generic function declarations; expose shared state through functions", rule.id)
+		}
+	}
 	_, declMain := directive(decl, "main")
 	routeMain := rule.rule.Target == "main" || declMain
 	file, err := e.additionFile(rule, routeMain)
@@ -224,7 +240,9 @@ func (e *engine) addDeclaration(rule *template, decl dst.Decl) error {
 		if err != nil {
 			return err
 		}
-		e.result.Links = append(e.result.Links, Link{Symbol: symbol, Signature: signature})
+		proof, checked := rule.rule.Bindings["bridge:"+fn.Name.Name]
+		checked = checked && proof.Target == symbol
+		e.result.Links = append(e.result.Links, Link{Symbol: symbol, Signature: signature, Checked: checked})
 		if err := e.ensureBlankImport(file, "unsafe"); err != nil {
 			return err
 		}
@@ -252,7 +270,11 @@ func (e *engine) projectType(rule *template, projection *dst.TypeSpec) error {
 	if err != nil {
 		return err
 	}
-	if fromConstraints != toConstraints {
+	constraintsChecked, err := checkedPair(rule, "constraints:"+projection.Name.Name, fromConstraints, toConstraints)
+	if err != nil {
+		return err
+	}
+	if !e.declarationsOnly && !constraintsChecked && fromConstraints != toConstraints {
 		return fmt.Errorf("rule %s: generic type constraints for %s mismatch", rule.id, projection.Name.Name)
 	}
 	fromStruct, fromOK := projection.Type.(*dst.StructType)
@@ -266,7 +288,11 @@ func (e *engine) projectType(rule *template, projection *dst.TypeSpec) error {
 		if err != nil {
 			return err
 		}
-		if fromType != toType {
+		checked, err := checkedPair(rule, "type:"+projection.Name.Name, fromType, toType)
+		if err != nil {
+			return err
+		}
+		if !e.declarationsOnly && !checked && fromType != toType {
 			return fmt.Errorf("rule %s: type projection %s mismatch: %s != %s", rule.id, projection.Name.Name, fromType, toType)
 		}
 		return nil
@@ -303,7 +329,11 @@ func (e *engine) projectType(rule *template, projection *dst.TypeSpec) error {
 				if err != nil {
 					return err
 				}
-				if left != right {
+				checked, err := checkedPair(rule, "field:"+projection.Name.Name+"."+name, left, right)
+				if err != nil {
+					return err
+				}
+				if !e.declarationsOnly && !checked && left != right {
 					return fmt.Errorf("rule %s: field %s.%s type mismatch: %s != %s", rule.id, projection.Name.Name, name, left, right)
 				}
 			}

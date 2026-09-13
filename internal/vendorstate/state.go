@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 )
 
-const stateVersion = 1
+const stateVersion = 2
 
 type diskFile struct {
 	Exists bool   `json:"exists"`
@@ -22,6 +22,7 @@ type diskFile struct {
 type record struct {
 	Baseline   diskFile `json:"baseline"`
 	OutputHash string   `json:"outputHash"`
+	Owners     []string `json:"owners,omitempty"`
 }
 
 type manifest struct {
@@ -29,6 +30,7 @@ type manifest struct {
 	Root        string            `json:"root"`
 	Fingerprint string            `json:"fingerprint"`
 	Files       map[string]record `json:"files"`
+	Plan        []Entry           `json:"plan,omitempty"`
 }
 
 type workspace struct {
@@ -78,7 +80,7 @@ func (w *workspace) readManifest() (*manifest, diskFile, error) {
 }
 
 func (w *workspace) validateManifest(m *manifest) error {
-	if m.Version != stateVersion || pathIdentity(m.Root) != pathIdentity(w.root) {
+	if m.Version != stateVersion || m.Root != "." {
 		return fmt.Errorf("vendor state belongs to a different root or unsupported format: root=%q version=%d", m.Root, m.Version)
 	}
 	seen := make(map[string]bool, len(m.Files))

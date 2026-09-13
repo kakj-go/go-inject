@@ -28,4 +28,4 @@ python examples/check.py gin external --gin-version v1.12.0 --tool ./go-inject
 
 Windows 构建并传入 `./go-inject.exe`。也可以通过 `GOINJECT_BINARY` 指定工具。脚本需要 Python 3.10 及以上，只使用标准库，在临时副本中验证二进制和测试，并检查 Gin vendor 生成/恢复及标准库规则的 vendor 拒绝行为。失败后保留目录，`--keep-work` 可在成功后也保留。
 
-测试断言注入后的行为，使用 `go-inject test .` 运行。普通 `go test .` 没有这些注入效果；Gin 已生成 vendor 源码后例外。根目录 `go test ./...` 不包含嵌套模块。
+测试断言注入后的行为，使用 `go test -toolexec="go-inject" .` 运行。普通 `go test .` 没有这些注入效果；Gin 已生成 vendor 源码后例外。根目录 `go test ./...` 不包含嵌套模块。

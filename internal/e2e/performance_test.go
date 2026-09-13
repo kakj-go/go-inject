@@ -72,11 +72,7 @@ func observeSnapshot(t *testing.T, f *fixture, output string) observedSnapshot {
 	t.Helper()
 	basic := f.inspect(output) // also registers cleanup for this retained session
 	var result observedSnapshot
-	for _, line := range strings.Split(output, "\n") {
-		if strings.HasPrefix(line, "GOINJECT_WORK=") {
-			result.directory = strings.TrimSpace(strings.TrimPrefix(line, "GOINJECT_WORK="))
-		}
-	}
+	result.directory = basic.Session
 	var session struct {
 		Cache, Fingerprint string
 		Root               struct{ Dir string }

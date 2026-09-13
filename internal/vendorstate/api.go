@@ -15,6 +15,22 @@ import (
 // file is overwritten, including while recovering an interrupted transaction.
 var ErrConflict = errors.New("vendor source conflict")
 
+type Selection struct{ ID, Target, Version, State string }
+type Entry struct {
+	ImportPath, GoVersion, GOOS, GOARCH string
+	Rules                               []Selection
+}
+type Input struct {
+	Exists bool
+	Hash   string
+}
+type Plan struct {
+	Fingerprint string
+	Entries     []Entry
+	Owners      map[string][]string
+	Inputs      map[string]Input
+}
+
 // Overlay returns an overlay of saved baseline sources. Files originally
 // created by the tool map to an empty path, which hides them from cmd/go.
 // Baselines are copied into a fresh directory underneath destDir so the result
@@ -81,11 +97,19 @@ func Overlay(vendorRoot, destDir string) (map[string]string, error) {
 // callers must reject semantic conflicts such as a new helper name already
 // belonging to the application before calling Apply.
 func Apply(vendorRoot string, outputs map[string][]byte, fingerprint string) error {
+	return ApplyPlan(vendorRoot, outputs, Plan{Fingerprint: fingerprint})
+}
+
+func ApplyPlan(vendorRoot string, outputs map[string][]byte, plan Plan) error {
 	w, unlock, err := openLocked(vendorRoot)
 	if err != nil {
 		return err
 	}
 	defer unlock()
+	return w.apply(outputs, plan)
+}
+
+func (w *workspace) apply(outputs map[string][]byte, plan Plan) error {
 	if err := w.recover(); err != nil {
 		return err
 	}
@@ -95,6 +119,9 @@ func Apply(vendorRoot string, outputs map[string][]byte, fingerprint string) err
 	}
 	current, err := w.checkManaged(old)
 	if err != nil {
+		return err
+	}
+	if err = w.checkInputs(old, plan.Inputs); err != nil {
 		return err
 	}
 	normalized := make(map[string][]byte, len(outputs))
@@ -121,7 +148,7 @@ func Apply(vendorRoot string, outputs map[string][]byte, fingerprint string) err
 		normalized[rel] = append([]byte(nil), data...)
 	}
 
-	next := &manifest{Version: stateVersion, Root: w.root, Fingerprint: fingerprint, Files: make(map[string]record)}
+	next := &manifest{Version: stateVersion, Root: ".", Fingerprint: plan.Fingerprint, Plan: plan.Entries, Files: make(map[string]record)}
 	changes := make(map[string]fileChange)
 	if old != nil {
 		for rel, entry := range old.Files {
@@ -149,7 +176,8 @@ func Apply(vendorRoot string, outputs map[string][]byte, fingerprint string) err
 		after := diskFile{Exists: true, Data: normalized[rel], Mode: mode}
 		// A plan which reproduces the baseline no longer owns this file.
 		if !sameContents(baseline, after) {
-			next.Files[rel] = record{Baseline: baseline, OutputHash: contentHash(after.Data)}
+			owners := plan.Owners[filepath.Join(w.logicalRoot, filepath.FromSlash(rel))]
+			next.Files[rel] = record{Baseline: baseline, OutputHash: contentHash(after.Data), Owners: owners}
 		}
 		changes[rel] = fileChange{Path: rel, Before: before, After: after}
 	}
@@ -167,6 +195,28 @@ func Apply(vendorRoot string, outputs map[string][]byte, fingerprint string) err
 	return w.commit(transaction)
 }
 
+func (w *workspace) checkInputs(m *manifest, inputs map[string]Input) error {
+	for name, want := range inputs {
+		rel, err := w.relative(name)
+		if err != nil {
+			return err
+		}
+		actual, err := w.readSource(rel)
+		if err != nil {
+			return err
+		}
+		if m != nil {
+			if item, ok := m.Files[rel]; ok {
+				actual = item.Baseline
+			}
+		}
+		if actual.Exists != want.Exists || actual.Exists && contentHash(actual.Data) != want.Hash {
+			return fmt.Errorf("%w: %s changed while planning", ErrConflict, name)
+		}
+	}
+	return nil
+}
+
 // Restore removes all tool changes and forgets the saved baseline after a
 // successful transaction. Unrelated files remain unchanged.
 func Restore(vendorRoot string) error {
@@ -181,7 +231,7 @@ func HasState(vendorRoot string) bool {
 	if err != nil {
 		return false
 	}
-	for _, filename := range []string{w.manifestPath(), w.journalPath()} {
+	for _, filename := range []string{w.manifestPath(), w.journalPath(), w.initialPath()} {
 		if _, err := os.Lstat(filename); err == nil {
 			return true
 		}

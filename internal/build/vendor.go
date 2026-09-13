@@ -3,13 +3,14 @@ package build
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/kakj-go/go-inject/internal/process"
 	"github.com/kakj-go/go-inject/internal/project"
 	"github.com/kakj-go/go-inject/internal/vendorstate"
 )
@@ -90,6 +91,9 @@ func Vendor(ctx context.Context, dir string, args []string) error {
 				}
 			}
 		}
+		if e = s.ValidateGenerated(ctx); e != nil {
+			return e
+		}
 	}
 	// Nothing is written to the project until every selected rule is validated.
 	var stage string
@@ -106,13 +110,12 @@ func Vendor(ctx context.Context, dir string, args []string) error {
 		c := project.Command(ctx, env.Dir, args...)
 		c.Stdout = os.Stdout
 		c.Stderr = os.Stderr
-		if e = c.Run(); e != nil {
+		if e = process.Run(ctx, c); e != nil {
 			return e
 		}
 	}
 	outputs := map[string][]byte{}
-	owners := map[string]string{}
-	var fingerprints []string
+	plan := vendorstate.Plan{Owners: map[string][]string{}, Inputs: map[string]vendorstate.Input{}}
 	// Compare complete effective source for every shared dependency, including
 	// packages that one entry leaves untouched.
 	shared := map[string]map[string][]byte{}
@@ -125,7 +128,11 @@ func Vendor(ctx context.Context, dir string, args []string) error {
 		for _, r := range records {
 			changes[r.Package] = r
 		}
-		fingerprints = append(fingerprints, s.Fingerprint)
+		entry := vendorstate.Entry{ImportPath: s.RootPath, GoVersion: s.Env.GOVERSION, GOOS: s.Env.GOOS, GOARCH: s.Env.GOARCH}
+		for _, rule := range s.Statuses {
+			entry.Rules = append(entry.Rules, vendorstate.Selection{ID: rule.Rule, Target: rule.Target, Version: rule.Version, State: rule.State})
+		}
+		plan.Entries = append(plan.Entries, entry)
 		for pkg, p := range s.Packages {
 			if p.Standard || p.Module == nil || p.Module.Main || strings.Contains(pkg, " [") {
 				continue
@@ -142,12 +149,25 @@ func Vendor(ctx context.Context, dir string, args []string) error {
 				effective[filepath.Base(src.Path)] = src.Data
 			}
 			if r, ok := changes[pkg]; ok {
+				for _, src := range sources {
+					dest := filepath.Join(vendorRoot, filepath.FromSlash(pkg), filepath.Base(src.Path))
+					plan.Inputs[dest] = vendorstate.Input{Exists: true, Hash: hash(src.Data)}
+				}
+				var owners []string
+				seen := map[string]bool{}
+				for _, match := range r.Result.Matches {
+					if !seen[match.Rule] {
+						owners = append(owners, match.Rule)
+						seen[match.Rule] = true
+					}
+				}
+				sort.Strings(owners)
 				for name, b := range r.Result.Replacements {
 					base := filepath.Base(name)
 					effective[base] = b
 					dest := filepath.Join(vendorRoot, filepath.FromSlash(pkg), base)
-					outputs[dest] = b
-					owners[dest] = s.RootPath
+					outputs[dest] = portableLines(b, dest, pkg, s)
+					plan.Owners[dest] = owners
 				}
 				for name, b := range r.Result.Additions {
 					base := filepath.Base(name)
@@ -162,8 +182,9 @@ func Vendor(ctx context.Context, dir string, args []string) error {
 							return fmt.Errorf("generated vendor file already occupied: %s", dest)
 						}
 					}
-					outputs[dest] = b
-					owners[dest] = s.RootPath
+					outputs[dest] = portableLines(b, dest, pkg, s)
+					plan.Owners[dest] = owners
+					plan.Inputs[dest] = vendorstate.Input{}
 				}
 			}
 			if prev, ok := shared[pkg]; ok {
@@ -175,16 +196,24 @@ func Vendor(ctx context.Context, dir string, args []string) error {
 			}
 		}
 	}
-	_ = owners
-	if !exists {
-		if e = os.Rename(stage, vendorRoot); e != nil {
-			if e = copyTree(stage, vendorRoot); e != nil {
-				return e
-			}
+	sort.Slice(plan.Entries, func(i, j int) bool { return plan.Entries[i].ImportPath < plan.Entries[j].ImportPath })
+	portable := map[string][]byte{}
+	for name, data := range outputs {
+		rel, e := filepath.Rel(vendorRoot, name)
+		if e != nil {
+			return e
 		}
+		portable[filepath.ToSlash(rel)] = data
 	}
-	sort.Strings(fingerprints)
-	return vendorstate.Apply(vendorRoot, outputs, hash([]byte(strings.Join(fingerprints, "\n"))))
+	data, _ := json.Marshal(struct {
+		Entries []vendorstate.Entry
+		Files   map[string][]byte
+	}{plan.Entries, portable})
+	plan.Fingerprint = hash(data)
+	if !exists {
+		return vendorstate.Install(vendorRoot, stage, outputs, plan)
+	}
+	return vendorstate.ApplyPlan(vendorRoot, outputs, plan)
 }
 
 func equalFiles(a, b map[string][]byte) bool {
@@ -197,37 +226,4 @@ func equalFiles(a, b map[string][]byte) bool {
 		}
 	}
 	return true
-}
-func copyTree(src, dst string) error {
-	return filepath.WalkDir(src, func(p string, d os.DirEntry, e error) error {
-		if e != nil {
-			return e
-		}
-		rel, e := filepath.Rel(src, p)
-		if e != nil {
-			return e
-		}
-		to := filepath.Join(dst, rel)
-		if d.IsDir() {
-			return os.MkdirAll(to, 0755)
-		}
-		if d.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("refusing symlink %s", p)
-		}
-		in, e := os.Open(p)
-		if e != nil {
-			return e
-		}
-		defer in.Close()
-		out, e := os.OpenFile(to, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
-		if e != nil {
-			return e
-		}
-		_, e = io.Copy(out, in)
-		closeErr := out.Close()
-		if e != nil {
-			return e
-		}
-		return closeErr
-	})
 }

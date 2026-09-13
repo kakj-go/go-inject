@@ -157,7 +157,7 @@ func command(dir string, env map[string]string, timeout time.Duration, exe strin
 
 func (f *fixture) cli(args ...string) string {
 	f.t.Helper()
-	output, err := command(f.dir, f.env, 6*time.Minute, cliBinary, args...)
+	output, err := invoke(f.dir, f.env, 6*time.Minute, args...)
 	if err != nil {
 		f.t.Fatalf("go-inject %v failed: %v\n%s", args, err, output)
 	}
@@ -166,7 +166,7 @@ func (f *fixture) cli(args ...string) string {
 
 func (f *fixture) fails(reason string, args ...string) {
 	f.t.Helper()
-	output, err := command(f.dir, f.env, 2*time.Minute, cliBinary, args...)
+	output, err := invoke(f.dir, f.env, 2*time.Minute, args...)
 	if err == nil {
 		f.t.Fatalf("go-inject %v unexpectedly succeeded:\n%s", args, output)
 	}
@@ -193,6 +193,7 @@ func (f *fixture) run(name, want string) {
 }
 
 type report struct {
+	Session     string
 	Fingerprint string
 	Rules       []struct{ Rule, Target, State, Version string }
 	Packages    []struct {
@@ -209,21 +210,19 @@ type report struct {
 
 func (f *fixture) inspect(buildOutput string) report {
 	f.t.Helper()
-	var directory string
-	for _, line := range strings.Split(buildOutput, "\n") {
-		if strings.HasPrefix(line, "GOINJECT_WORK=") {
-			directory = strings.TrimSpace(strings.TrimPrefix(line, "GOINJECT_WORK="))
-		}
+	var result report
+	if err := json.Unmarshal([]byte(f.cli("inspect", "--json")), &result); err != nil {
+		f.t.Fatal(err)
 	}
+	directory := result.Session
 	if directory == "" {
-		f.t.Fatalf("-work produced no session directory:\n%s", buildOutput)
+		f.t.Fatal("native inspection has no session path")
 	}
 	// Retained sessions are CLI-owned temporary directories. Cleanup only the
 	// exact path returned by this invocation after verifying its parent and name.
 	if filepath.Clean(filepath.Dir(directory)) == filepath.Clean(os.TempDir()) && strings.HasPrefix(filepath.Base(directory), "go-inject-") {
 		f.t.Cleanup(func() { _ = os.RemoveAll(directory) })
 	}
-	var result report
 	if err := json.Unmarshal([]byte(f.cli("inspect", "--json", directory)), &result); err != nil {
 		f.t.Fatal(err)
 	}
@@ -231,6 +230,17 @@ func (f *fixture) inspect(buildOutput string) report {
 		f.t.Fatal("inspection report has no fingerprint")
 	}
 	return result
+}
+
+// All behavioral tests exercise the public native Go integration, including
+// cold/hot builds, source files, tests, runtime hooks and new dependency closure.
+func invoke(dir string, env map[string]string, timeout time.Duration, args ...string) (string, error) {
+	if len(args) > 0 && (args[0] == "build" || args[0] == "test") {
+		goArgs := []string{args[0], `-toolexec="` + cliBinary + `"`}
+		goArgs = append(goArgs, args[1:]...)
+		return command(dir, env, timeout, toolchainGo, goArgs...)
+	}
+	return command(dir, env, timeout, cliBinary, args...)
 }
 
 const registration = `//go:build goinject

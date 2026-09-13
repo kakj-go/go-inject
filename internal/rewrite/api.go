@@ -15,7 +15,12 @@ type Rule struct {
 	Path, Target, Provider, ID string
 	Source                     []byte
 	ImportNames                map[string]string
+	// Bindings is populated by Go type checking. Syntax pairs ensure workers
+	// apply the proof to exactly the declarations which were checked.
+	Bindings map[string]Binding
 }
+
+type Binding struct{ Template, Target string }
 
 // Match records an applied declaration or function injection.
 type Match struct {
@@ -26,6 +31,7 @@ type Match struct {
 // Link describes a native go:linkname declaration that needs link closure.
 type Link struct {
 	Symbol, Signature string
+	Checked           bool
 }
 
 // Result contains only changed source files and newly added Go files.

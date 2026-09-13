@@ -6,8 +6,8 @@
 
 ```sh
 go mod tidy
-go-inject test .
-go-inject build -work -o basic .
+go test -toolexec="go-inject" .
+go build -toolexec="go-inject" -work -o basic .
 ./basic
 ```
 
@@ -22,4 +22,4 @@ quote=35 early=0
 
 未注入时，`Quote(2)` 返回 `20`，`Quote(-1)` 返回 `-10`。规则末尾的顶层 `return 0` 被移除，条件分支 return 保留。测试还验证了参数为零的情况。[inject.go](inject.go)展示了入口登记。
 
-将 `-work` 输出的会话目录传给 `go-inject inspect --json <目录>`，可以查看生成源码。本例在构建会话中修改应用源码，第三方源码交付参见 [Gin vendor 示例](../gin/README_CN.md)。
+在当前目录运行 `go-inject inspect --json`，可以查看最近一次 `-work` 保留的生成源码，缓存命中同样可用。本例在构建会话中修改应用源码，第三方源码交付参见 [Gin vendor 示例](../gin/README_CN.md)。

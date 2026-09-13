@@ -6,6 +6,7 @@
 
 ```sh
 python scripts/check_repository.py
+python scripts/check_snippets.py
 python -m unittest discover -s scripts -p 'test_*.py'
 go test ./...
 go build -o go-inject ./cmd/go-inject
@@ -53,6 +54,12 @@ Gin 还验证重复 vendor 生成、普通 `go build/test -mod=vendor`、二进�
 保留针对行为的断言。源码快照或成功编译不能代替“注入逻辑确实执行，原行为仍然正确”的验证。
 
 原生 CI 保留测试详细输出，记录冷热构建耗时、编译次数以及空操作模板的分配次数。**Remote installation** 工作流在打标签前按固定提交 SHA、打标签后按发布版本分别安装 CLI 和聚合规则模块。验证使用空模块缓存与构建缓存、公共 Go 代理和校验数据库，应用中不设置本地 `replace`。发布前两个冻结的 Go 版本都必须通过。
+
+## 原生集成回归
+
+E2E 还覆盖跨包/泛型别名、数组常量、泛型接收者、真实 main 辅助函数和内部测试文件。vendor 用例通过 go generate 验证生成、错误代码在交付前被拒绝、迁移 checkout、恢复、输入编辑保护和首次目录交付恢复。多入口结果一致时共享编译，冲突时明确失败；覆盖率参数和新增依赖 archive 使用原生 go test 验证。
+
+上下文用例验证 runtime 存储、快照回调和访问新增 runtime 函数的类型校验桥接，不依赖遥测厂商。这是基础机制的证据，不是完整 Agent 兼容声明。
 
 ## beta 范围
 

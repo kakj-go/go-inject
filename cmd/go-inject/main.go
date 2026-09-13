@@ -9,10 +9,12 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"runtime/debug"
 	"syscall"
 
 	engine "github.com/kakj-go/go-inject/internal/build"
+	"github.com/kakj-go/go-inject/internal/native"
 )
 
 var version = "devel"
@@ -42,7 +44,12 @@ func run(ctx context.Context, args []string) error {
 	}
 	switch args[0] {
 	case "build", "test":
-		return engine.Run(ctx, dir, args[0], args[1:])
+		return fmt.Errorf("use native go %s -toolexec=go-inject", args[0])
+	case "__serve":
+		if len(args) != 2 {
+			return fmt.Errorf("invalid native session server arguments")
+		}
+		return native.Serve(ctx, args[1])
 	case "vendor":
 		return engine.Vendor(ctx, dir, args[1:])
 	case "inspect":
@@ -51,10 +58,17 @@ func run(ctx context.Context, args []string) error {
 		if e = f.Parse(args[1:]); e != nil {
 			return e
 		}
-		if f.NArg() != 1 {
-			return fmt.Errorf("usage: go-inject inspect [--json] <session-directory>")
+		if f.NArg() > 1 {
+			return fmt.Errorf("usage: go-inject inspect [--json] [session-directory]")
 		}
-		return engine.Inspect(f.Arg(0), *asJSON)
+		path := f.Arg(0)
+		if path == "" {
+			path, e = native.LatestSession(dir)
+			if e != nil {
+				return e
+			}
+		}
+		return engine.Inspect(path, *asJSON)
 	case "version":
 		v := version
 		if v == "devel" {
@@ -70,6 +84,9 @@ func run(ctx context.Context, args []string) error {
 		usage()
 		return nil
 	default:
+		if filepath.IsAbs(args[0]) || len(args) > 1 {
+			return native.Run(ctx, args)
+		}
 		return fmt.Errorf("unknown command %q", args[0])
 	}
 }
@@ -77,13 +94,14 @@ func usage() {
 	fmt.Println(`go-inject — ordinary Go code injection
 
 Usage:
-  go-inject build [go build flags] [packages]
-  go-inject test [go test flags] [packages]
+  go build -toolexec="go-inject" [go build flags] [packages]
+  go test -toolexec="go-inject" [go test flags] [packages]
+  go generate [packages]  (runs //go:generate go-inject vendor ...)
   go-inject vendor [packages]
   go-inject vendor --restore
   go-inject inspect [--json] <session-directory>
   go-inject version
 
-Enable interceptor packages with blank imports in a //go:build goinject file.
-Use build/test -work to retain actual generated source and the inspection report.`)
+Enable interceptor packages with blank imports in a //go:build goinject || generate file.
+Use the native Go -work flag to retain generated source and inspection reports.`)
 }

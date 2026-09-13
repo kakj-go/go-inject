@@ -119,6 +119,9 @@ func (w *workspace) applyJournal(j *journal) error {
 }
 
 func (w *workspace) recover() error {
+	if err := w.recoverInitial(); err != nil {
+		return err
+	}
 	file, err := readPlain(w.journalPath())
 	if err != nil || !file.Exists {
 		return err

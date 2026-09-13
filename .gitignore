@@ -14,3 +14,7 @@
 *.test.exe
 __pycache__/
 *.pyc
+
+/.goinject/vendor-state/lock
+/.goinject/vendor-state/transaction.json
+/.goinject/vendor-state/initial.json

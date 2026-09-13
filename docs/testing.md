@@ -6,6 +6,7 @@
 
 ```sh
 python scripts/check_repository.py
+python scripts/check_snippets.py
 python -m unittest discover -s scripts -p 'test_*.py'
 go test ./...
 go build -o go-inject ./cmd/go-inject
@@ -22,7 +23,7 @@ python examples/check.py gin external --gin-version v1.11.0 --tool ./go-inject
 python examples/check.py gin external --gin-version v1.12.0 --tool ./go-inject
 ```
 
-The runner copies examples to a temporary directory, resolves their modules, invokes the real CLI, executes binaries, and checks behavior. Services bind to port `0` through `httptest` and close before exit. `--keep-work` retains the copies; failures retain them automatically. `--no-vendor` skips vendor validation.
+The runner copies examples to a temporary directory, resolves their modules, invokes native Go build/test with the real compiler proxy, runs go generate, executes binaries, and checks behavior. Services bind to port `0` through `httptest` and close before exit. `--keep-work` retains the copies; failures retain them automatically. `--no-vendor` skips vendor validation.
 
 ## What examples assert
 
@@ -33,7 +34,7 @@ The runner copies examples to a temporary directory, resolves their modules, inv
 | gin | Private method/field, new atomic field, helper, order, version selection |
 | external | Separate module, aggregate imports, deduplication, selected version variant |
 
-Gin also verifies repeated vendor generation, ordinary `go build/test -mod=vendor`, binary behavior, and exact restoration of existing vendor and module files. HTTP and external reject vendor because their rules target the standard library; rejection must not change project files.
+Gin also verifies repeated vendor generation, ordinary `go build/test -mod=vendor`, binary behavior, and exact restoration of existing vendor and module files. HTTP and external reject generation because their rules target the standard library; basic rejects its application-module target. Rejection must not change project files.
 
 ## Release validation contract
 
@@ -53,6 +54,12 @@ Unit and end-to-end checks must cover:
 Keep targeted behavioral assertions. A source snapshot or successful compile cannot replace an assertion that the injected behavior ran and the original behavior remained correct.
 
 Native CI uses verbose test output to retain cold/warm build times, compilation counts, and no-op allocation measurements. The **Remote installation** workflow separately installs the CLI and aggregate rule module by an immutable commit SHA before tagging, and by the release version afterward. It uses empty module/build caches, the public Go proxy and checksum database, and an application with no local `replace` directives. Both frozen Go versions must pass before publication.
+
+## Native integration regressions
+
+The E2E suite also covers imported/generic aliases, constant array lengths, generic receivers, real main helpers and internal test files. Vendor tests exercise generation, invalid-code rejection before directory delivery, relocation to another checkout, restoration, edited input protection and recovery around initial directory delivery. Compatible native entries share code; conflicting entry outputs fail. Coverage flags and injected dependency archives are exercised through native go test.
+
+Opaque context tests exercise runtime storage, snapshot callbacks and typed bridges to added runtime functions without depending on a telemetry vendor. They are primitive-level evidence, not an agent compatibility claim.
 
 ## Scope of the beta
 

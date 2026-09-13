@@ -8,8 +8,8 @@
 
 ```sh
 go mod tidy
-go-inject test .
-go-inject build -work -o gin-example .
+go test -toolexec="go-inject" .
+go build -toolexec="go-inject" -work -o gin-example .
 ./gin-example
 ```
 
@@ -24,14 +24,14 @@ PASS gin: private method, private field, added field, helper, order, variant
 ## 通过 vendor 使用原生 Go
 
 ```sh
-go-inject vendor .
+go generate .
 go test -mod=vendor .
 go build -mod=vendor -o gin-example .
 ./gin-example
 go-inject vendor --restore
 ```
 
-打开 `vendor/github.com/gin-gonic/gin` 可查看实际生成源码。重复执行 `go-inject vendor .` 不能叠加注入。`--restore` 恢复记录中的原始 vendor 状态，并拒绝丢弃用户随后做出的修改。
+打开 `vendor/github.com/gin-gonic/gin` 可查看实际生成源码。重复执行 `go generate .` 不能叠加注入。`--restore` 恢复记录中的原始 vendor 状态，并拒绝丢弃用户随后做出的修改。
 
 ## 版本变体
 
@@ -40,7 +40,7 @@ go-inject vendor --restore
 ```sh
 go get github.com/gin-gonic/gin@v1.12.0
 go mod tidy
-go-inject test .
+go test -toolexec="go-inject" .
 ```
 
 更换依赖版本前先恢复已生成的 vendor。聚合包根据目标模块版本，在 [v111](../rules/gin/v111/gin.go) 和 [v112](../rules/gin/v112/gin.go) 中恰好选一个。测试读取 `gin.Version`，检查相应变体写入的响应头。

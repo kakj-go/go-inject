@@ -2,34 +2,28 @@
 
 [简体中文](usage_CN.md) · [README](../README.md)
 
-## Build and test
+## Native build and test
 
 ```sh
-go-inject build [Go build flags] [packages]
-go-inject test [Go test flags] [packages]
+go build -a -toolexec="go-inject" .
+go build -toolexec="go-inject" -o server ./cmd/server
+go test -toolexec="go-inject" -count=1 ./cmd/server
 ```
 
-Run commands from your Go project. Use the targets and flags you would pass to Go:
+The injector is a compiler proxy, not a replacement Go build driver. Keep ordinary Go flags, module/workspace configuration and package patterns. The proxy discovers its parent Go process, establishes a session, and coordinates imports and archive dependencies. It delegates tools with their original exit status. Compiler intrinsics or functions implemented only in assembly have no ordinary Go body to intercept.
 
-```sh
-go-inject build -o server ./cmd/server
-go-inject build -tags enterprise ./cmd/server
-go-inject test -count=1 ./cmd/server
-go-inject test ./...
-```
+`-a` forces compilation; otherwise the effective rules and source fingerprint integrate with Go's cache. Rule providers are ordinary module dependencies. `go mod tidy`, `go.sum`, `replace` and `go.work` continue to manage their source and versions.
 
-Each selected package is an entry for rule selection. A registration file in `cmd/server` applies to that server and its dependencies. It does not automatically select rules for the separate tests of every library. Add a registration file to a library package when testing that library with injection.
-
-Use ordinary module settings for private dependencies and local development. `replace` and `go.work` identify local source; checksums and versions stay in Go's module files. Registration files use `//go:build goinject`, so `go mod tidy` retains their imports while normal application compilation excludes them. Do not add `goinject` to the final application's build tags yourself.
+Each entry chooses rules with registration imports. If a shared dependency needs different generated code for two entries in one Go invocation, the operation fails with both entry names; run separate Go commands. Compatible selections share Go's compilation. Library tests need their own registration, rather than inheriting a main package's rules automatically.
 
 ## Registration and aggregation
 
-An entry's registration file contains static imports:
-
 ```go
-//go:build goinject
+//go:build goinject || generate
 
 package main
+
+//go:generate go-inject vendor .
 
 import (
     _ "example.com/app/inject/local"
@@ -37,51 +31,55 @@ import (
 )
 ```
 
-An aggregate uses the same tagged-file format to import child rule packages. Repeated discovery of the same rule is deduplicated. Ordinary imports inside templates and helper libraries supply code dependencies; they do not enable additional rules. The [external example](../examples/external/README.md) demonstrates both aggregation and deduplication.
+Go enables `generate` when scanning generators; ordinary application builds enable neither tag. Rule discovery reads these imports without executing template initializers. An aggregate imports child rule packages with the same tagged-file form. Normal helper imports do not activate more rules. Duplicate discovery of the same rule is deduplicated.
 
-## Retain and inspect a build
+## Retain and inspect source
 
 ```sh
-go-inject build -work -o server ./cmd/server
-go-inject inspect --json <session-directory>
+go build -work -toolexec="go-inject" .
+go-inject inspect --json
 ```
 
-`-work` keeps the session and prints its path. Inspection reads the saved result, including source locations and generated files. This is the source prepared for that build, not a separately computed preview. Keep the directory while investigating a failure; remove it when finished.
+The optional inspector reads the latest retained injection session for the current working directory. The report includes its `Session` directory, effective rules and actual source snapshots. Cached builds retain the corresponding snapshot too. To select an earlier session, supply its directory explicitly. A multi-entry invocation requires choosing an individual session directory.
 
-`go-inject version` prints the installed version. Include it, `go version`, the command, and relevant inspection output when reporting a problem.
+Go also prints its own `WORK` directory. Compiler version probes capture their stderr, and compiler diagnostics may be replayed from Go's cache, so the injector does not print transient session paths as compiler diagnostics. Use the inspector for the current session.
 
-## Generate vendor source
+`go-inject version` prints the tool version. Include it, `go version`, the native Go command and inspection output when reporting a problem.
+
+## Generate vendor
+
+For a vendor-capable selection, the registration directive runs:
 
 ```sh
-go-inject vendor ./cmd/server
-go build -mod=vendor -o server ./cmd/server
-go test -mod=vendor ./cmd/server
+go generate .
+go build -mod=vendor .
+go test -mod=vendor .
+```
+
+Go does not run generate automatically. Run it again after rule, dependency, target-platform or relevant build-setting changes. A generator executes in the source directory of its package; keep one deliberate plan for a shared vendor tree. A generator directive can list several entry packages when their required shared source is identical.
+
+Only dependencies actually covered by vendor may be changed. Application/workspace main modules, standard library, runtime, and main/testmain-routed initialization are rejected. Adding `init` inside a vendored dependency is supported. Local replacement dependencies work when Go includes them in vendor. See [the Gin example](../examples/gin/README.md).
+
+Generation preserves an existing vendor tree as its initial baseline, checks types before delivery, and uses hashes and a process lock to reject changed inputs or edited managed output. Initial creation has its own recoverable directory-delivery transaction. Source positions and completed state use portable paths. Commit `vendor` and `.goinject/vendor-state/manifest.json`; in-progress journals and locks are local operational files.
+
+```sh
 go-inject vendor --restore
 ```
 
-Vendor mode changes supported third-party dependency source on disk. It records original state so `--restore` can undo tool-owned changes. Existing user edits and subsequent edits to generated files must be resolved explicitly. Repeating the same generation is idempotent.
+Restore is an explicit maintenance operation: it rechecks ownership hashes before restoring baselines. State format 2 belongs to the native integration; restore beta.1-generated state using its original tool before regenerating with this version. Unknown state formats fail rather than guessing a baseline.
 
-One physical vendor tree contains one result. Entries requiring different generated versions of a shared package are rejected together. Use separate project copies when both results must exist simultaneously. Plain `go build -mod=vendor` uses the files currently on disk and does not select a fresh set of rules.
+## Diagnostics
 
-Application-module targets, main initialization, standard-library targets, and runtime targets require `build` or `test`; vendor rejects them. The [Gin example](../examples/gin/README.md) demonstrates native Go compilation and restoration for third-party dependencies.
+| Result | Meaning and response |
+|---|---|
+| Not applicable | The entry does not depend on the target; inspect its imports |
+| Missing file/function/type | Update the rule for the actual dependency source |
+| Signature or field mismatch | Real Go types disagree with the descriptor |
+| No/overlapping version variants | Supply exactly one matching implementation |
+| Declaration conflict | Explicit additions collide with an existing declaration |
+| Import cycle | Move shared runtime code out of its instrumented consumers or use an explicit validated function bridge |
+| Different shared output | Build the affected entries separately |
+| Edited vendor/state | Resolve the edit; generated code is not overwritten silently |
+| Parent Go process unavailable | The native session cannot safely determine its build context |
 
-The tool owns `-toolexec`. Multiple entries cannot share one `-o` or profile output path; run those entries separately. User overlays and supported Go build/test flags are passed through the build context.
-
-## Read diagnostics
-
-| Result | Meaning | Next step |
-|---|---|---|
-| Not applicable | The entry does not depend on the target | Check the entry and registration imports |
-| Missing target | The package exists but the file/function/type does not | Update the rule for the dependency version |
-| Signature/projection mismatch | The template describes a different API or field | Compare expected and actual declarations |
-| No version variant | No implementation supports the actual version | Use a rule version supporting that dependency |
-| Multiple variants | More than one implementation applies | Make version ranges or constraints disjoint |
-| Declaration conflict | An added declaration or field collides | Rename it or remove the conflicting rule |
-| Dependency cycle | New imports would create a cycle | Keep target-specific helpers in the target package |
-| Vendor conflict | Entries or local edits cannot share the output | Resolve edits or use separate directories |
-
-Applicable mismatches fail the operation. Go compilation alone does not prove the requested injection occurred.
-
-## Editor setup
-
-Templates are Go source, but projections describe another package and version variants describe alternative targets. The tool's validation in the actual target is authoritative. Configure the editor to show `goinject` files when navigating registration imports; keep that tag out of ordinary application builds.
+For tracing/runtime integration requirements and vendor limitations, see [integration boundaries](integrations.md).

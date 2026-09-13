@@ -25,7 +25,7 @@ var goFlags = func() map[string]flagSpec {
 	}
 	add("a n x v work json c h help artifacts benchmem failfast fullpath short", flagSpec{})
 	add("race msan asan trimpath buildvcs linkshared modcacherw cover", flagSpec{list: true})
-	add("C o exec vet debug-actiongraph debug-runtime-trace debug-trace", flagSpec{value: true})
+	add("C o exec vet toolexec debug-actiongraph debug-runtime-trace debug-trace", flagSpec{value: true})
 	add("p tags mod modfile overlay compiler pkgdir installsuffix gcflags asmflags ldflags gccgoflags pgo buildmode covermode coverpkg", flagSpec{value: true, list: true})
 	add("run skip bench benchtime count timeout parallel cpu shuffle list fuzz fuzztime fuzzminimizetime coverprofile cpuprofile memprofile blockprofile mutexprofile trace outputdir memprofilerate blockprofilerate mutexprofilefraction", flagSpec{value: true})
 	for _, name := range strings.Fields("artifacts bench benchmem benchtime blockprofile blockprofilerate count cpu cpuprofile failfast fullpath fuzz list memprofile memprofilerate mutexprofile mutexprofilefraction outputdir parallel run short skip timeout fuzztime fuzzminimizetime trace v shuffle coverprofile") {
@@ -83,9 +83,6 @@ func splitFlags(args []string, environment bool) (flags, roots []string, err err
 			continue
 		}
 		name, _, inline := flagName(arg)
-		if name == "toolexec" {
-			return nil, nil, fmt.Errorf("-toolexec is managed by go-inject")
-		}
 		spec, ok := goFlags[name]
 		if !ok {
 			return nil, nil, fmt.Errorf("unknown Go build/test flag %q; custom test arguments must follow -args", arg)
@@ -148,6 +145,7 @@ func ResolveArgs(ctx context.Context, dir string, args []string) (resolvedDir st
 		return "", nil, nil, err
 	}
 	flags = append(defaultFlags, commandFlags...)
+	flags = Remove(flags, "toolexec", true)
 	if err := validateBuildTags(flags); err != nil {
 		return "", nil, nil, err
 	}

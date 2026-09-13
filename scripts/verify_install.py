@@ -70,9 +70,9 @@ def main() -> None:
         module = json.loads(run(["go", "list", "-m", "-json", MODULE + "/examples/rules"], app))
         if module.get("Replace") or not module["Version"].endswith(expected):
             raise SystemExit("external rules did not resolve the requested remote revision")
-        run([tool, "test", "."], app)
+        run(["go", "test", '-toolexec="' + str(tool) + '"', "."], app)
         binary = stage / ("release-check" + suffix)
-        run([tool, "build", "-o", binary, "."], app)
+        run(["go", "build", '-toolexec="' + str(tool) + '"', "-o", binary, "."], app)
         if "PASS external:" not in run([binary], app):
             raise SystemExit("external aggregate rule behavior is missing")
     print("PASS clean remote CLI installation and aggregate rules: " + args.ref)

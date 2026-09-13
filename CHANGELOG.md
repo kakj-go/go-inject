@@ -1,5 +1,18 @@
 # Changelog / 更新记录
 
+## Unreleased — native Go integration / 原生 Go 集成
+
+- Native `go build -toolexec="go-inject"` and `go test`; vendor generation through `go generate`.
+- Automatic parent-Go sessions and shared-package conflict detection.
+- Real Go type binding, including imported/generic aliases and constant array lengths.
+- Real main/test-file targets, portable vendor state, input conflict checks, and transactional first delivery.
+- Native E2E coverage and tracing integration boundaries; no new release tag is implied by this section.
+
+- 使用原生 Go 构建与测试，通过 go generate 生成 vendor。
+- 自动管理父 Go 会话，检测共享包结果冲突。
+- 真实 Go 类型绑定、main/测试源码模型与完整首次交付事务。
+- vendor 状态可迁移，明确追踪集成职责与生成模式边界；此节不代表已发布新标签。
+
 ## beta-0.1 — v0.1.0-beta.1
 
 The first beta establishes the import-selected Go template contract and a single `go-inject` command.

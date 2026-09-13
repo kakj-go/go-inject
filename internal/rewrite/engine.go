@@ -38,20 +38,31 @@ type template struct {
 }
 
 type engine struct {
-	importPath string
-	sources    []*parsedFile
-	rules      []*template
-	types      map[string]*typeDecl
-	values     map[string]*valueDecl
-	functions  map[string][]*functionDecl
-	added      map[string]string
-	imports    map[string]bool
-	result     *Result
+	declarationsOnly bool
+	importPath       string
+	sources          []*parsedFile
+	rules            []*template
+	types            map[string]*typeDecl
+	values           map[string]*valueDecl
+	functions        map[string][]*functionDecl
+	added            map[string]string
+	imports          map[string]bool
+	result           *Result
 }
 
 // Package applies all selected rules atomically in memory. It never changes the
 // input buffers or writes files. A selected rule that does not match is an error.
 func Package(importPath string, sources []Source, rules []Rule) (result *Result, err error) {
+	return transform(importPath, sources, rules, false)
+}
+
+// Declarations prepares the actual target type environment before signatures
+// are bound, without injecting function bodies or guessing type equivalence.
+func Declarations(importPath string, sources []Source, rules []Rule) (*Result, error) {
+	return transform(importPath, sources, rules, true)
+}
+
+func transform(importPath string, sources []Source, rules []Rule, declarationsOnly bool) (result *Result, err error) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			result = nil
@@ -61,6 +72,7 @@ func Package(importPath string, sources []Source, rules []Rule) (result *Result,
 	e := &engine{importPath: importPath, types: map[string]*typeDecl{}, values: map[string]*valueDecl{},
 		functions: map[string][]*functionDecl{}, added: map[string]string{}, imports: map[string]bool{},
 		result: &Result{Replacements: map[string][]byte{}, Additions: map[string][]byte{}}}
+	e.declarationsOnly = declarationsOnly
 	for _, source := range sources {
 		f, parseErr := parse(source.Path, source.Data, source.ImportNames)
 		if parseErr != nil {
@@ -106,6 +118,9 @@ func Package(importPath string, sources []Source, rules []Rule) (result *Result,
 		}
 	}
 	for _, rule := range e.rules {
+		if declarationsOnly {
+			break
+		}
 		if err = e.applyFunctions(rule); err != nil {
 			return nil, err
 		}
@@ -296,6 +311,13 @@ func stripDirectives(node dst.Node) {
 
 func (e *engine) targetFile(rule *template) (*parsedFile, error) {
 	if rule.rule.Target == "main" {
+		for _, f := range e.sources {
+			for _, d := range f.file.Decls {
+				if fn, ok := d.(*dst.FuncDecl); ok && fn.Recv == nil && fn.Name.Name == "main" {
+					return f, nil
+				}
+			}
+		}
 		return e.sources[0], nil
 	}
 	target := strings.ReplaceAll(rule.rule.Target, "\\", "/")

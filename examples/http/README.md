@@ -6,8 +6,8 @@ The [HTTP rule](../rules/http/client.go) intercepts `net/http.(*Client).Do`. It 
 
 ```sh
 go mod tidy
-go-inject test .
-go-inject build -work -o http-example .
+go test -toolexec="go-inject" .
+go build -toolexec="go-inject" -work -o http-example .
 ./http-example
 ```
 
@@ -21,4 +21,4 @@ PASS http: request header, response result, original body
 
 The program starts a real local `httptest` server on an automatically assigned port, sends a request, and checks the server-observed header, returned status/header, original body, and unchanged caller request. It closes the response body, idle connections, and server.
 
-`go-inject vendor .` must fail because `net/http` belongs to the standard library. Use the build backend for this rule. Runtime tracing or a remote telemetry service is not involved.
+`go generate .` must fail because `net/http` belongs to the standard library. Use the build backend for this rule. Runtime tracing or a remote telemetry service is not involved.

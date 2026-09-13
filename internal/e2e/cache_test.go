@@ -75,7 +75,7 @@ func Value()(out string){defer func(){out+=%q}();return ""}
 	completed := make(chan result, 2)
 	for _, entry := range []string{"a", "b"} {
 		go func(entry string) {
-			output, err := command(f.dir, f.env, 6*time.Minute, cliBinary, "build", "-o", entry+exeSuffix(), "./cmd/"+entry)
+			output, err := invoke(f.dir, f.env, 6*time.Minute, "build", "-o", entry+exeSuffix(), "./cmd/"+entry)
 			completed <- result{entry, output, err}
 		}(entry)
 	}
