@@ -20,7 +20,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parent.parent
 GO_VERSION = "go1.27.1"
 TARGETS = tuple((system, arch) for system in ("linux", "windows", "darwin") for arch in ("amd64", "arm64"))
-DOCUMENTS = ("README.md", "README_CN.md", "LICENSE")
+DOCUMENTS = ("README.md", "README_CN.md", "LICENSE", "THIRD_PARTY_LICENSES.txt")
 VERSION_PATTERN = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$")
 
 

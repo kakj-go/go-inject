@@ -123,4 +123,4 @@ Use `./go-inject.exe` on Windows. Example validation runs in temporary copies an
 
 The project builds on the mechanisms and experience demonstrated by [go-build-hijacking](https://github.com/0x2E/go-build-hijacking), [Apache SkyWalking Go](https://github.com/apache/skywalking-go), [Orchestrion](https://github.com/DataDog/orchestrion), and [Garble](https://github.com/burrowers/garble). See the architecture document for the implementation boundaries informed by these projects.
 
-Licensed under [Apache-2.0](LICENSE).
+Licensed under [Apache-2.0](LICENSE). Binary distributions include [third-party notices](THIRD_PARTY_LICENSES.txt).

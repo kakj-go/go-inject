@@ -11,6 +11,7 @@
 | `check_toolchain.py` | 拒绝与原生任务不一致的 Go 版本、主机/目标架构、CGO 设置或工具链策略 |
 | `package_release.py` | 使用 Go 1.27.1 构建六个平台的无 CGO 二进制，生成可复现归档及校验文件 |
 | `verify_release.py` | 检查归档字节、成员、内嵌元数据及当前 Go 工具链下的真实二进制行为 |
+| `verify_install.py` | 使用空缓存安装远程 CLI/规则模块的固定版本并验证聚合规则行为 |
 
 ```sh
 python scripts/check_repository.py
@@ -44,7 +45,7 @@ Unix 不会把编译器目录前置到 PATH，避免 `/usr/bin/go` 覆盖 setup-
 python scripts/package_release.py --version v0.1.0-beta.1 --output dist
 ```
 
-脚本为 Linux、Windows、macOS 的 amd64/arm64 构建二进制，固定 `CGO_ENABLED=0`、`-trimpath`、`-buildvcs=false`，通过链接参数写入 `main.version` 和完整 `main.commit`。归档包含可执行文件、`README.md`、`README_CN.md`、`LICENSE`。Windows 使用 ZIP，其余使用 tar.gz；`SHA256SUMS` 覆盖六个归档，不覆盖已有同名产物。
+脚本为 Linux、Windows、macOS 的 amd64/arm64 构建二进制，固定 `CGO_ENABLED=0`、`-trimpath`、`-buildvcs=false`，通过链接参数写入 `main.version` 和完整 `main.commit`。归档包含可执行文件、`README.md`、`README_CN.md`、`LICENSE` 和 `THIRD_PARTY_LICENSES.txt`。Windows 使用 ZIP，其余使用 tar.gz；`SHA256SUMS` 覆盖六个归档，不覆盖已有同名产物。
 
 归档时间使用 `SOURCE_DATE_EPOCH` 或提交时间。参数可通过 `python scripts/package_release.py --help` 查看。交叉构建成功本身不证明运行支持。
 

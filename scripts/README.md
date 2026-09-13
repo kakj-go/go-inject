@@ -11,6 +11,7 @@ These scripts use Python 3.10+ and its standard library. Run them from a checkou
 | `check_toolchain.py` | Reject a Go version, host/target architecture, CGO setting, or toolchain policy that differs from the native job |
 | `package_release.py` | Build six CGO-free binaries with Go 1.27.1 and create deterministic archives plus checksums |
 | `verify_release.py` | Verify archive bytes, members, embedded metadata, and actual binary behavior with the active Go toolchain |
+| `verify_install.py` | Install a remote CLI/rule module revision with empty caches and verify aggregate rule behavior |
 
 ```sh
 python scripts/check_repository.py
@@ -44,7 +45,7 @@ Activate Go 1.27.1, then run:
 python scripts/package_release.py --version v0.1.0-beta.1 --output dist
 ```
 
-The script builds Linux, Windows, and macOS on amd64/arm64 with `CGO_ENABLED=0`, `-trimpath`, and `-buildvcs=false`. Linker flags embed `main.version` and the full `main.commit`. Archives contain the executable, `README.md`, `README_CN.md`, and `LICENSE`. Windows uses ZIP; other targets use tar.gz. `SHA256SUMS` covers the six archives. Existing artifact names are never overwritten.
+The script builds Linux, Windows, and macOS on amd64/arm64 with `CGO_ENABLED=0`, `-trimpath`, and `-buildvcs=false`. Linker flags embed `main.version` and the full `main.commit`. Archives contain the executable, `README.md`, `README_CN.md`, `LICENSE`, and `THIRD_PARTY_LICENSES.txt`. Windows uses ZIP; other targets use tar.gz. `SHA256SUMS` covers the six archives. Existing artifact names are never overwritten.
 
 Archive timestamps use `SOURCE_DATE_EPOCH` or the commit timestamp. Run `python scripts/package_release.py --help` for arguments. A successful cross-build does not establish runtime support.
 

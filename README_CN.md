@@ -123,4 +123,4 @@ Windows 使用 `./go-inject.exe`。示例验证在临时副本中运行，HTTP �
 
 本项目参考了 [go-build-hijacking](https://github.com/0x2E/go-build-hijacking)、[Apache SkyWalking Go](https://github.com/apache/skywalking-go)、[Orchestrion](https://github.com/DataDog/orchestrion) 和 [Garble](https://github.com/burrowers/garble) 的机制及工程经验。具体职责边界见架构文档。
 
-使用 [Apache-2.0](LICENSE) 许可证。
+使用 [Apache-2.0](LICENSE) 许可证。二进制发行包包含[第三方许可证说明](THIRD_PARTY_LICENSES.txt)。
