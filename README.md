@@ -1,113 +1,126 @@
 # go-inject
 
-[中文](README_CN.md)
+[简体中文](README_CN.md)
 
-### Quick start
+Write an ordinary Go function to intercept another Go function. Enable rules with imports, then build an instrumented binary or generate inspectable source in `vendor`.
 
-```shell
-go install github.com/kakj-go/go-inject/tools/generate-inject@latest
-go install github.com/kakj-go/go-inject/tools/toolexec-inject@latest
+**beta-0.1** · Go 1.26 or newer · [Rule reference](docs/rules.md) · [Examples](examples/README.md)
+
+## Install
+
+```sh
+go install github.com/kakj-go/go-inject/cmd/go-inject@v0.1.0-beta.1
+go-inject version
 ```
 
-[generate-inject](example%2Fgin-generate-inject%2FREADME.md)
+For a checkout, use `go build -o go-inject ./cmd/go-inject` (`go-inject.exe` on Windows).
 
-[toolexec-inject](example%2Fgin-toolexec-inject%2FREADME.md)
+## A small example
 
-### Documentation
+Suppose `example.com/app/price/price.go` contains:
 
-#### create inject method
+```go
+package price
 
-1. create an inject directory to store the injected code. 
-2. create the .go file to inject directory. 
-3. .go file add `//inject:github.com/gin-gonic/gin/routergroup.go` note
-
-```golang
-//inject:github.com/gin-gonic/gin/routergroup.go
-package gin
-
-import (
-	"fmt"
-	"github.com/gin-gonic/gin"
-)
-
-// If it is a method, since the structure of the object is not in the current package, 
-// we can define a structure with the same name, and the parameters and return values are the same
-type IRoutes interface {
-}
-
-// copy `github.com/gin-gonic/gin/routergroup.go` method code then remove before method body
-func (group *RouterGroup) POST(relativePath string, handlers ...gin.HandlerFunc) IRoutes {
-	fmt.Println("before POST")
-	defer fmt.Println("after POST")
-
-	return nil
+func Quote(units int) int {
+    return units * 10
 }
 ```
 
-> Note that the return on the last line of the code will not be injected into the code
+Create `inject/price/price.go` in that application:
 
-> Due to the code injection mode, writing if,return and other code in the middle of the code will change the logic of the original code. Here, you can dynamically modify the logic of the external library without changing the source code
+```go
+//inject:example.com/app/price/price.go
+package price
 
-> For some functions or methods that only return a structure without a name, you can add name like `__injectResult0` to use. For details, please refer to [change result name](example%2Fgin-toolexec-inject%2Finject%2Fgin)
+func Quote(units int) (total int) {
+    if units < 0 {
+        return 0
+    }
+    units++
+    defer func() { total += 5 }()
+    return 0
+}
+```
 
-> For structures and parameter return values, external libraries can be used directly, provided that the external library exposes the structure. 
+The final top-level `return` is a placeholder. go-inject removes it and places the original function body after the template. The conditional return remains an early return; the deferred function can read and change the final result. `Quote(2)` becomes `35`, and `Quote(-1)` becomes `0`.
 
-> Due to the injection mode being a copy function or method body So using global variables inside is not feasible, but using public packages is feasible because imported packages will also be injected into the library
+Enable the rule in the application's entry package, for example `cmd/server/inject.go`:
 
-> If you want to access the private parameters of a return value or structure, you can define a custom structure in the file and use your own structure to access it. For details, please refer to [structure](example%2Fgin-toolexec-inject%2Finject%2Fgin%2Fgin.go)
+```go
+//go:build goinject
 
-
-#### create generate.go
-
-Create a new generate.go in the main method file directory, and then import external injection library or self-developed injection lib from import
-
-in package add `//go:generate generate-inject -path ../` note
-
-> path is the location of the project directory relative to the `go generate` work directory
-
-```golang
-//go:generate generate-inject -path ../
 package main
 
-import (
-	_ "gin_generate_inject/inject/gin"
-	_ "github.com/kakj-go/go-inject-trace-contrib/skywalking/github.com/gin-gonic/gin"
-)
+import _ "example.com/app/inject/price"
 ```
 
-#### use generate-inject inject code
-cd `generate.go` file directory
+Build or test with normal Go flags and targets:
 
-run `go generate`
+```sh
+go-inject build -o server ./cmd/server
+go-inject test ./cmd/server
+```
 
-#### use toolexec-inject inject code
+Registration imports select rules for that entry. They are read statically; the final application build does not enable the `goinject` tag. Put a registration file in a library's own package when its tests need rules. See the runnable [basic example](examples/basic/README.md).
 
-cd main method file directory
+## Use and share rules
 
-run `go build -a -toolexec="toolexec-inject -path ../"`
+Rules can live in your project, a public module, or a private module. Use `go.mod`, `go.sum`, `replace`, and `go.work` to manage them. A tagged registration file can also aggregate several rule packages. No runtime registration is required.
 
-> path is the location of the project directory relative to the build work directory
+```go
+//go:build goinject
 
-### generate-inject core
+package main
 
-The generate-inject core is based on the mechanism of go generate to dynamically modify vendor code to achieve code injection
+import _ "github.com/kakj-go/go-inject/examples/rules/http"
+```
 
-So it is not possible to inject the Golang src library
+The [reusable example module](examples/rules/README.md) includes HTTP and Gin rules, aggregation, and version variants. The [HTTP example](examples/http/README.md) changes an outgoing request header and response status while preserving the response body. The [Gin example](examples/gin/README.md) uses a private method and field, adds a field and helper, and composes two ordered rules.
 
-The injected code can be seen in the corresponding file of the vendor
+## Inspect the actual code
 
-### toolexec-inject core
+```sh
+go-inject build -work -o server ./cmd/server
+go-inject inspect --json <session-directory>
+```
 
-The core of toolexec inject is to dynamically modify temporary files during compilation by adding `-a - toolexec="toolexec inject"` during code construction
+`-work` retains the build session and prints its location. Inspect that session to review the selected rules, target versions, matches, and generated files used by the build.
 
-The Golang src library can be injected
+For third-party dependencies, generate source directly into `vendor`:
 
-The modified code cannot be viewed
+```sh
+go-inject vendor ./cmd/server
+go build -mod=vendor -o server ./cmd/server
+go-inject vendor --restore
+```
 
-toolexec: [劫持 Golang 编译](https://www.anquanke.com/post/id/258431)
+A vendor tree represents one generated result. Conflicting entry selections and local edits are reported; repeated generation must not inject the same source again. Vendor supports third-party dependency rules. Application-module, main-initialization, standard-library, and `runtime` targets use `build` or `test` instead.
 
-### thank
+## Contract
 
-[go-build-hijacking](https://github.com/0x2E/go-build-hijacking)
+- A selected target outside the entry's business dependencies is not applicable.
+- An applicable target with a missing function, incompatible signature, missing projected field, or unsupported version fails the operation.
+- Multiple rules run in ascending `//inject:order` order, then stable identity order. The default order is `0`; deferred calls retain Go's reverse execution order.
+- Same-named types are projections. Use `//inject:add` for new fields, helpers, types, variables, constants, or initialization.
+- Version variants sharing provider module, explicit rule ID, and target package select exactly one applicable implementation.
 
-[skywalking-go](https://github.com/apache/skywalking-go)
+The [rule reference](docs/rules.md) defines these semantics. The [usage guide](docs/usage.md) covers commands and troubleshooting. The [architecture](docs/architecture.md) explains package loading, transformation, dependencies, and the two backends.
+
+go-inject is a general injection tool. Tracing runtimes, context propagation, sampling, and exporters belong to the rules and runtime libraries built on top of it.
+
+## Development
+
+```sh
+go test ./...
+go build -o go-inject ./cmd/go-inject
+python examples/check.py --tool ./go-inject
+```
+
+Use `./go-inject.exe` on Windows. Example validation runs in temporary copies and starts its HTTP servers on automatically assigned local ports. See [testing](docs/testing.md), [contributing](CONTRIBUTING.md), and the [changelog](CHANGELOG.md).
+
+## Acknowledgments
+
+The project builds on the mechanisms and experience demonstrated by [go-build-hijacking](https://github.com/0x2E/go-build-hijacking), [Apache SkyWalking Go](https://github.com/apache/skywalking-go), [Orchestrion](https://github.com/DataDog/orchestrion), and [Garble](https://github.com/burrowers/garble). See the architecture document for the implementation boundaries informed by these projects.
+
+Licensed under [Apache-2.0](LICENSE).

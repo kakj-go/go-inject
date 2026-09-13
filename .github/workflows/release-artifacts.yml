@@ -1,0 +1,112 @@
+name: Release artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Go module release version (display title for v0.1.0-beta.1 is beta-0.1)
+        required: true
+        default: v0.1.0-beta.1
+        type: string
+
+# This workflow only uploads Actions artifacts. Publication is a separate action.
+permissions:
+  contents: read
+
+concurrency:
+  group: release-artifacts-${{ github.ref }}-${{ inputs.version }}
+  cancel-in-progress: false
+
+env:
+  GOTOOLCHAIN: local
+  CGO_ENABLED: '0'
+
+jobs:
+  package:
+    name: Build six release archives
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: '1.27.1'
+          cache-dependency-path: go.sum
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Validate source and scripts
+        run: |
+          python scripts/check_repository.py
+          python -m unittest discover -s scripts -p 'test_*.py'
+          go test ./...
+      - name: Build and package
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: python scripts/package_release.py --version "$RELEASE_VERSION" --commit "$RELEASE_COMMIT" --output dist
+      - name: Upload release archives and checksums
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: go-inject-${{ inputs.version }}-${{ github.sha }}
+          path: dist/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+  validate:
+    name: Archive · ${{ matrix.platform.goos }}/${{ matrix.platform.goarch }} · Go ${{ matrix.go }}
+    needs: package
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        go: ['1.26.8', '1.27.1']
+        platform:
+          - {runner: ubuntu-24.04, goos: linux, goarch: amd64, arch: x64}
+          - {runner: ubuntu-24.04-arm, goos: linux, goarch: arm64, arch: arm64}
+          - {runner: windows-2025, goos: windows, goarch: amd64, arch: x64}
+          - {runner: windows-11-arm, goos: windows, goarch: arm64, arch: arm64}
+          - {runner: macos-15-intel, goos: darwin, goarch: amd64, arch: x64}
+          - {runner: macos-15, goos: darwin, goarch: arm64, arch: arm64}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: ${{ matrix.go }}
+          architecture: ${{ matrix.platform.arch }}
+          cache-dependency-path: |
+            go.sum
+            examples/**/go.sum
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+          architecture: ${{ matrix.platform.arch }}
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: go-inject-${{ inputs.version }}-${{ github.sha }}
+          path: artifacts
+      - name: Verify and execute the downloaded binary
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_COMMIT: ${{ github.sha }}
+          RELEASE_GOOS: ${{ matrix.platform.goos }}
+          RELEASE_GOARCH: ${{ matrix.platform.goarch }}
+          VALIDATION_GO: ${{ matrix.go }}
+        shell: python
+        run: |
+          import os
+          import subprocess
+          import sys
+          subprocess.run([
+              sys.executable, "scripts/verify_release.py", "--directory", "artifacts",
+              "--version", os.environ["RELEASE_VERSION"], "--commit", os.environ["RELEASE_COMMIT"],
+              "--goos", os.environ["RELEASE_GOOS"], "--goarch", os.environ["RELEASE_GOARCH"],
+              "--go-version", os.environ["VALIDATION_GO"],
+          ], check=True)

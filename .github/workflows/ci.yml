@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GOTOOLCHAIN: local
+  CGO_ENABLED: '0'
+
+jobs:
+  native:
+    name: ${{ matrix.platform.goos }}/${{ matrix.platform.goarch }} · Go ${{ matrix.go }}
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        go: ['1.26.8', '1.27.1']
+        platform:
+          - {runner: ubuntu-24.04, goos: linux, goarch: amd64, arch: x64, cgo: true}
+          - {runner: ubuntu-24.04-arm, goos: linux, goarch: arm64, arch: arm64, cgo: true}
+          - {runner: windows-2025, goos: windows, goarch: amd64, arch: x64, cgo: true}
+          - {runner: windows-11-arm, goos: windows, goarch: arm64, arch: arm64, cgo: false}
+          - {runner: macos-15-intel, goos: darwin, goarch: amd64, arch: x64, cgo: true}
+          - {runner: macos-15, goos: darwin, goarch: arm64, arch: arm64, cgo: true}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: ${{ matrix.go }}
+          architecture: ${{ matrix.platform.arch }}
+          cache-dependency-path: |
+            go.sum
+            examples/**/go.sum
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+          architecture: ${{ matrix.platform.arch }}
+      - name: Configure native C compiler
+        if: matrix.platform.cgo
+        run: python scripts/configure_cgo.py
+      - name: Print toolchain
+        run: go env GOVERSION GOHOSTOS GOHOSTARCH GOOS GOARCH GOTOOLCHAIN CGO_ENABLED CC
+      - name: Check repository conventions
+        run: python scripts/check_repository.py
+      - name: Test release scripts
+        run: python -m unittest discover -s scripts -p "test_*.py"
+      - name: Validate workflows
+        if: matrix.platform.runner == 'ubuntu-24.04' && matrix.go == '1.27.1'
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -shellcheck= -pyflakes= .github/workflows/ci.yml .github/workflows/release-artifacts.yml
+      - name: Unit and end-to-end tests
+        run: go test ./...
+      - name: Build example tool
+        run: go build -o bin/ ./cmd/go-inject
+      - name: Executable examples
+        run: python examples/check.py --tool "bin/go-inject${{ matrix.platform.goos == 'windows' && '.exe' || '' }}"
+      - name: Gin 1.11 compatibility
+        if: matrix.platform.runner == 'ubuntu-24.04'
+        run: python examples/check.py gin external --gin-version v1.11.0 --tool bin/go-inject
+      - name: Gin 1.12 compatibility
+        if: matrix.platform.runner == 'ubuntu-24.04'
+        run: python examples/check.py gin external --gin-version v1.12.0 --tool bin/go-inject
+
+  race:
+    name: Race · ${{ matrix.platform.goos }}/${{ matrix.platform.goarch }} · Go ${{ matrix.go }}
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ['1.26.8', '1.27.1']
+        platform:
+          - {runner: ubuntu-24.04, goos: linux, goarch: amd64, arch: x64}
+          - {runner: ubuntu-24.04-arm, goos: linux, goarch: arm64, arch: arm64}
+          - {runner: windows-2025, goos: windows, goarch: amd64, arch: x64}
+          - {runner: macos-15-intel, goos: darwin, goarch: amd64, arch: x64}
+          - {runner: macos-15, goos: darwin, goarch: arm64, arch: arm64}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: ${{ matrix.go }}
+          architecture: ${{ matrix.platform.arch }}
+          cache-dependency-path: go.sum
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+          architecture: ${{ matrix.platform.arch }}
+      - name: Configure native C compiler
+        run: python scripts/configure_cgo.py
+      - name: Print race toolchain
+        run: go env GOVERSION GOHOSTOS GOHOSTARCH GOTOOLCHAIN CGO_ENABLED CC
+      - name: Core, transaction, and process race tests
+        run: go test -race ./internal/...

@@ -3,3 +3,14 @@
 
 /vendor
 /example/**/vendor
+
+/examples/**/vendor
+/.goinject/cache/
+/.goinject/work/
+/bin/
+/dist/
+/artifacts/
+*.test
+*.test.exe
+__pycache__/
+*.pyc
