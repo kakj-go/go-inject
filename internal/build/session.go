@@ -33,6 +33,7 @@ type Session struct {
 	Flags                                                                []string
 	Overlay                                                              map[string]string
 	Needs                                                                []string
+	UseCacheSnapshots                                                    bool
 }
 type Record struct {
 	Package  string
@@ -97,6 +98,7 @@ func VendorRoot(env project.Env) string {
 }
 
 func Sources(p *project.Package, overlay map[string]string, names map[string]string) ([]rewrite.Source, error) {
+	names = project.SourceImports(p, names)
 	var out []rewrite.Source
 	for _, name := range append(append([]string{}, p.GoFiles...), p.CgoFiles...) {
 		file := filepath.Join(p.Dir, name)
@@ -246,7 +248,20 @@ func Prepare(ctx context.Context, env project.Env, root *project.Package, flags 
 		if e != nil {
 			return nil, fmt.Errorf("target %s version %q: %w", target, packageVersion(s.Packages[target]), e)
 		}
-		for _, p := range result.Imports {
+		originalImports := map[string]bool{}
+		if p := s.Packages[target]; p != nil {
+			for _, dep := range p.Imports {
+				originalImports[dep] = true
+				originalImports[s.canonicalImport(target, dep)] = true
+			}
+		}
+		for _, p := range scopeImports(result, false) {
+			canonical := s.canonicalImport(target, p)
+			if !originalImports[canonical] {
+				needs[canonical] = true
+			}
+		}
+		for _, p := range mainImports(result) {
 			needs[p] = true
 		}
 		for _, l := range result.Links {
@@ -270,7 +285,7 @@ func Prepare(ctx context.Context, env project.Env, root *project.Package, flags 
 		delete(needs, r.Provider)
 	}
 	for p := range needs {
-		if p == "" {
+		if p == "" || strings.HasPrefix(p, "vendor/") {
 			continue
 		}
 		s.Needs = append(s.Needs, p)
@@ -293,6 +308,9 @@ func Prepare(ctx context.Context, env project.Env, root *project.Package, flags 
 		var b strings.Builder
 		fmt.Fprintf(&b, "package %s\nimport (\n", pkg)
 		for _, p := range s.Needs {
+			if !canSeedImport(s.RootPath, p) {
+				continue
+			}
 			fmt.Fprintf(&b, "_ %q\n", p)
 		}
 		b.WriteString(")\n")
@@ -347,10 +365,22 @@ func Prepare(ctx context.Context, env project.Env, root *project.Package, flags 
 	if err = os.MkdirAll(s.Cache, 0700); err != nil {
 		return nil, err
 	}
+	s.UseCacheSnapshots = s.SnapshotValid()
 	if err = project.OverlayFile(filepath.Join(dir, "overlay.json"), s.Overlay); err != nil {
 		return nil, err
 	}
 	return s, s.Save()
+}
+
+func canSeedImport(entry, dep string) bool {
+	if strings.HasPrefix(dep, "internal/") || strings.HasPrefix(dep, "vendor/") {
+		return false
+	}
+	if i := strings.LastIndex(dep, "/internal/"); i >= 0 {
+		parent := dep[:i]
+		return entry == parent || strings.HasPrefix(entry, parent+"/")
+	}
+	return true
 }
 
 func packageVersion(p *project.Package) string {
@@ -396,7 +426,7 @@ func (s *Session) readRecords(includePlan bool) ([]Record, error) {
 	if includePlan {
 		bases = append(bases, filepath.Join(s.Dir, "plan-records"))
 	}
-	if s.Cache != "" {
+	if s.Cache != "" && s.UseCacheSnapshots {
 		bases = append(bases, filepath.Join(s.Cache, "records"))
 	}
 	bases = append(bases, filepath.Join(s.Dir, "records"))
@@ -527,7 +557,9 @@ func (s *Session) checkCycles(ctx context.Context, flags []string) error {
 		if r.Package == "main" {
 			continue
 		}
-		graph[r.Package] = append(graph[r.Package], scopeImports(r.Result, false)...)
+		for _, p := range scopeImports(r.Result, false) {
+			graph[r.Package] = append(graph[r.Package], s.canonicalImport(r.Package, p))
+		}
 	}
 	state := map[string]int{}
 	var stack []string

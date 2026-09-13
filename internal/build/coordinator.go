@@ -129,7 +129,7 @@ func (c *coordinator) resolve(req exportRequest) exportResponse {
 	args = append(args, "--", req.Package)
 	cmd := project.Command(c.ctx, c.session.Env.Dir, args...)
 	chain, _ := json.Marshal(append(req.Chain, req.Package))
-	cmd.Env = append(os.Environ(), SessionEnv+"="+c.session.Dir+string(os.PathSeparator)+"session.json", "GOINJECT_RESOLVE_CHAIN="+string(chain))
+	cmd.Env = append(cmd.Environ(), SessionEnv+"="+c.session.Dir+string(os.PathSeparator)+"session.json", "GOINJECT_RESOLVE_CHAIN="+string(chain))
 	var out, stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr

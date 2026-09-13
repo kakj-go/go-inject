@@ -31,8 +31,9 @@ func Metadata(ctx context.Context, dir string, flags []string, name string) (*Pa
 	if err := ValidateImportPath(name); err != nil {
 		return nil, err
 	}
+	command := Command(ctx, dir)
 	loaded, err := packages.Load(&packages.Config{
-		Context: ctx, Dir: dir, BuildFlags: ListFlags(flags),
+		Context: ctx, Dir: command.Dir, Env: command.Environ(), BuildFlags: ListFlags(flags),
 		Mode: packages.NeedName | packages.NeedFiles | packages.NeedModule,
 	}, name)
 	if err != nil {

@@ -99,7 +99,7 @@ func TestResolveArgsChdirPersistentFlagsAndOverrides(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resolved != child || !reflect.DeepEqual(roots, []string{"./..."}) {
+	if resolved != canonicalDirectory(child) || !reflect.DeepEqual(roots, []string{"./..."}) {
 		t.Fatalf("resolved = %q %q", resolved, roots)
 	}
 	if Has(flags, "C") || !reflect.DeepEqual(Tags(flags), []string{"command"}) {
@@ -172,7 +172,7 @@ func TestMetadataKeepsGoPackageNameAndSkipsUnusedImports(t *testing.T) {
 	if p.Name != "actualname" || p.Module == nil || p.Module.Path != "example.com/hooks" || p.Module.Replace == nil {
 		t.Fatalf("metadata = %+v", p)
 	}
-	if p.Dir != filepath.Join(dir, "hooks", "v3") {
+	if p.Dir != canonicalDirectory(filepath.Join(dir, "hooks", "v3")) {
 		t.Fatalf("directory = %q", p.Dir)
 	}
 	for _, bad := range []string{"-toolexec=command", "example.com/hooks/...", "./hooks", "example.com/hooks@v1.0.0"} {
@@ -198,7 +198,7 @@ func TestMetadataRespectsVendorAndWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Dir != filepath.Join(dir, "vendor", "example.com", "provider", "rules") || p.Name != "actualname" {
+	if p.Dir != canonicalDirectory(filepath.Join(dir, "vendor", "example.com", "provider", "rules")) || p.Name != "actualname" {
 		t.Fatalf("vendor metadata = %+v", p)
 	}
 	workfile := filepath.Join(dir, "go.work")
@@ -208,7 +208,7 @@ func TestMetadataRespectsVendorAndWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Dir != filepath.Join(dir, "provider", "rules") || p.Module == nil || !p.Module.Main || p.Module.Path != "example.com/provider" {
+	if p.Dir != canonicalDirectory(filepath.Join(dir, "provider", "rules")) || p.Module == nil || !p.Module.Main || p.Module.Path != "example.com/provider" {
 		t.Fatalf("workspace metadata = %+v", p)
 	}
 }

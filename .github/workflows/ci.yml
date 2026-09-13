@@ -51,8 +51,8 @@ jobs:
       - name: Configure native C compiler
         if: matrix.platform.cgo
         run: python scripts/configure_cgo.py
-      - name: Print toolchain
-        run: go env GOVERSION GOHOSTOS GOHOSTARCH GOOS GOARCH GOTOOLCHAIN CGO_ENABLED CC
+      - name: Verify native Go toolchain after compiler setup
+        run: python scripts/check_toolchain.py --go-version "${{ matrix.go }}" --goos "${{ matrix.platform.goos }}" --goarch "${{ matrix.platform.goarch }}" --cgo "${{ matrix.platform.cgo && '1' || '0' }}"
       - name: Check repository conventions
         run: python scripts/check_repository.py
       - name: Test release scripts
@@ -102,7 +102,7 @@ jobs:
           architecture: ${{ matrix.platform.arch }}
       - name: Configure native C compiler
         run: python scripts/configure_cgo.py
-      - name: Print race toolchain
-        run: go env GOVERSION GOHOSTOS GOHOSTARCH GOTOOLCHAIN CGO_ENABLED CC
+      - name: Verify native race toolchain after compiler setup
+        run: python scripts/check_toolchain.py --go-version "${{ matrix.go }}" --goos "${{ matrix.platform.goos }}" --goarch "${{ matrix.platform.goarch }}" --cgo 1
       - name: Core, transaction, and process race tests
         run: go test -race ./internal/...

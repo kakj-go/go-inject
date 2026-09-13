@@ -37,6 +37,8 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
+      - name: Verify release build toolchain
+        run: python scripts/check_toolchain.py --go-version 1.27.1 --goos linux --goarch amd64 --cgo 0
       - name: Validate source and scripts
         run: |
           python scripts/check_repository.py
@@ -88,6 +90,8 @@ jobs:
         with:
           python-version: '3.13'
           architecture: ${{ matrix.platform.arch }}
+      - name: Verify native archive validation toolchain
+        run: python scripts/check_toolchain.py --go-version "${{ matrix.go }}" --goos "${{ matrix.platform.goos }}" --goarch "${{ matrix.platform.goarch }}" --cgo 0
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: go-inject-${{ inputs.version }}-${{ github.sha }}

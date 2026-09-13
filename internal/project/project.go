@@ -11,7 +11,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -31,6 +30,7 @@ type Package struct {
 	Module                                                                                                          *Module
 	Error                                                                                                           *struct{ Err string }
 	DepsErrors                                                                                                      []struct{ Err string }
+	ImportMap                                                                                                       map[string]string
 }
 
 func (p *Package) Base() string { return strings.Split(p.ImportPath, " [")[0] }
@@ -52,7 +52,8 @@ type Env struct {
 
 func Command(ctx context.Context, dir string, args ...string) *exec.Cmd {
 	c := exec.CommandContext(ctx, "go", args...)
-	c.Dir = dir
+	c.Dir = canonicalDirectory(dir)
+	c.Env = commandEnvironment(c.Dir, os.Environ())
 	return c
 }
 
@@ -68,10 +69,8 @@ func Environment(ctx context.Context, dir string) (Env, error) {
 	if err = json.Unmarshal(stdout.Bytes(), &e); err != nil {
 		return e, err
 	}
-	e.Dir, err = filepath.Abs(dir)
-	if err != nil {
-		return e, err
-	}
+	e.Dir = command.Dir
+	e.GOWORK = canonicalWorkfile(e.GOWORK)
 	e.Go, err = exec.LookPath("go")
 	if e.GOMOD == "" || e.GOMOD == os.DevNull {
 		if e.GOWORK == "" || e.GOWORK == "off" {
@@ -191,7 +190,7 @@ func (e *Env) loadToolContext(ctx context.Context) error {
 	c := Command(ctx, e.Dir, "list", "-e", "-f", format, "--", "unsafe")
 	// A nonempty whitespace value suppresses persistent GOFLAGS without
 	// discarding GOENV's target/experiment settings. Flags are applied by Context.
-	c.Env = append(os.Environ(), "GOFLAGS= ")
+	c.Env = append(c.Environ(), "GOFLAGS= ")
 	var stdout, stderr bytes.Buffer
 	c.Stdout, c.Stderr = &stdout, &stderr
 	if err := process.Run(ctx, c); err != nil {

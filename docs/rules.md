@@ -74,7 +74,7 @@ Helpers, types, variables, constants, and fields must have unambiguous ownership
 
 Target-local additions live in the target package. Process-wide shared state belongs to a real helper/runtime package. Copying a declaration into several targets creates several declarations, not a shared singleton. Runtime helper imports must not introduce dependency cycles back to the target.
 
-A same-named `var` or `const` declaration without `//inject:add` replaces the existing declaration's initializer. Supply an initializer, retain the declaration kind and grouped names, and use compatible types. A missing target or competing replacement is an error. This can change target initialization behavior; it is not a new template-local variable.
+A same-named `var` or `const` declaration without `//inject:add` replaces the existing declaration's initializer. Supply an initializer, retain the declaration kind and grouped names, and use compatible types. A missing target or competing replacement is an error. This can change target initialization behavior; it is not a new template-local variable. `//inject:add` always means a new declaration and cannot be used to overwrite an existing one.
 
 ## Main initialization
 
@@ -93,6 +93,27 @@ func init() {
 ```
 
 In a `//inject:main` file, the added `init` is routed to the application's main package. It runs as a Go initializer in the generated application; rule discovery itself does not execute it. Put reusable runtime initialization behind a normal helper function and call it from the added initializer. See [the basic example](../examples/basic/inject/quote/startup.go).
+
+Alternatively, keep version-specific initialization inside a library-target variant and mark only its added initializer for the main package:
+
+```go
+//inject:github.com/gin-gonic/gin/gin.go
+//inject:id gin-bootstrap
+//inject:version >=v1.11.0 <v1.12.0
+package hooks
+
+import agent "example.com/team/runtime"
+
+//inject:add
+//inject:main
+func init() {
+    agent.Start()
+}
+```
+
+Declaration-level `//inject:main` is valid only on an added `func init()` with a body. It moves that initializer to main after the containing library variant is selected. An excluded or non-applicable variant contributes no initializer. A plain `//inject:add func init()` in a library-target file stays in that library. A file-level main target instead selects main directly, so it is not implicitly conditional on a separate library rule.
+
+An initializer moved to main has main's scope: target-package private names and target-local helpers are unavailable there. Call imported runtime helpers, or use valid public package-qualified references. Vendor mode rejects entry initialization.
 
 ## Composition
 

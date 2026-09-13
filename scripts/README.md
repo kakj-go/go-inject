@@ -7,7 +7,8 @@ These scripts use Python 3.10+ and its standard library. Run them from a checkou
 | Script | Purpose |
 |---|---|
 | `check_repository.py` | Check repository-local Markdown links/anchors and keep first-party Go files below 2,000 lines |
-| `configure_cgo.py` | Resolve native GCC/Clang and export `CC`, its binary directory, and `CGO_ENABLED=1` to GitHub Actions |
+| `configure_cgo.py` | Resolve and exercise native GCC/Clang, then export `CC`, `CGO_ENABLED=1`, and the macOS SDK when applicable |
+| `check_toolchain.py` | Reject a Go version, host/target architecture, CGO setting, or toolchain policy that differs from the native job |
 | `package_release.py` | Build six CGO-free binaries with Go 1.27.1 and create deterministic archives plus checksums |
 | `verify_release.py` | Verify archive bytes, members, embedded metadata, and actual binary behavior with the active Go toolchain |
 
@@ -26,10 +27,14 @@ python -m unittest discover -s scripts -p 'test_*.py'
 | Linux arm64 | `ubuntu-24.04-arm` | Native GCC |
 | Windows amd64 | `windows-2025` | Native GCC from the runner image |
 | Windows arm64 | `windows-11-arm` | CGO disabled; no race job |
-| macOS amd64 | `macos-15-intel` | `xcrun --find clang` |
-| macOS arm64 | `macos-15` | `xcrun --find clang` |
+| macOS amd64 | `macos-15-intel` | `xcrun --sdk macosx --find clang` and its SDK |
+| macOS arm64 | `macos-15` | `xcrun --sdk macosx --find clang` and its SDK |
 
-The compiler setup fails if the required compiler is missing and prints its exact version. A separate five-platform Go 1.27.1 job runs `go test -race ./internal/...`. It does not substitute cross-compilation for native execution. Linux amd64 additionally runs both Gin dependency baselines.
+Compiler setup prints the exact compiler version, compiles and runs a C program using standard headers and, on Unix, pthreads. On macOS it exports `SDKROOT` from `xcrun --sdk macosx --show-sdk-path` to both the probe and subsequent Go processes. Missing headers, SDKs, or execution support fail configuration; CGO is not silently disabled.
+
+Unix compiler directories are never prepended to PATH, so `/usr/bin/go` cannot override setup-go. Only Windows needs the GCC directory on PATH for runtime DLLs, and the selected Go directory remains ahead of it. A subsequent toolchain guard checks the actual Go executable, exact version, host and target OS/architecture, `GOTOOLCHAIN=local`, and expected CGO setting. The release build and archive-validation jobs apply the same guard.
+
+Separate five-platform jobs run `go test -race ./internal/...` with both Go versions. They do not substitute cross-compilation for native execution. Linux amd64 additionally runs both Gin dependency baselines.
 
 ## Build archives locally
 

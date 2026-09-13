@@ -74,7 +74,7 @@ helper、类型、变量、常量和字段必须归属明确，不能与既有�
 
 目标局部声明存在于目标包内。进程级共享状态放在真实 helper 或 runtime 包中。将声明复制到多个目标会产生多个声明，不会自动成为共享单例。运行时 helper 的 imports 不能形成返回目标包的依赖环。
 
-同名 `var` 或 `const` 声明未标注 `//inject:add` 时，会替换既有声明的初始化值。需要提供初始化表达式，保持声明种类及分组名字一致，并使用兼容类型。目标缺失或多个规则竞争替换时报错。这会改变目标的初始化行为，不是新增模板局部变量。
+同名 `var` 或 `const` 声明未标注 `//inject:add` 时，会替换既有声明的初始化值。需要提供初始化表达式，保持声明种类及分组名字一致，并使用兼容类型。目标缺失或多个规则竞争替换时报错。这会改变目标的初始化行为，不是新增模板局部变量。`//inject:add` 始终表示新增声明，不能用于覆盖既有声明。
 
 ## main 初始化
 
@@ -93,6 +93,27 @@ func init() {
 ```
 
 在 `//inject:main` 文件中，新增 `init` 路由到应用 main 包，作为生成程序的 Go 初始化函数执行；规则发现本身不会执行它。共享运行时的初始化可封装为普通 helper，由新增的 init 调用。参见 [basic 示例](../examples/basic/inject/quote/startup.go)。
+
+也可以把与版本关联的初始化保留在库目标变体中，只将新增的初始化函数标记为 main：
+
+```go
+//inject:github.com/gin-gonic/gin/gin.go
+//inject:id gin-bootstrap
+//inject:version >=v1.11.0 <v1.12.0
+package hooks
+
+import agent "example.com/team/runtime"
+
+//inject:add
+//inject:main
+func init() {
+    agent.Start()
+}
+```
+
+声明级 `//inject:main` 只适用于带函数体的新增 `func init()`。包含它的库变体选中后，该初始化才路由到 main；排除或不适用的变体不会贡献初始化。库目标文件中只有 `//inject:add` 的普通 init 仍留在目标库。文件级 main 目标则直接选择 main，不会自动受到另一个库规则的条件控制。
+
+移动到 main 的初始化使用 main 作用域，不能直接访问目标包私有名字或目标局部 helper。应调用已导入的 runtime helper，或使用合法的公开包限定引用。vendor 模式拒绝入口初始化。
 
 ## 组合
 

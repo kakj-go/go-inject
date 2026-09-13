@@ -132,6 +132,7 @@ func ResolveArgs(ctx context.Context, dir string, args []string) (resolvedDir st
 	if err != nil {
 		return "", nil, nil, err
 	}
+	resolvedDir = canonicalDirectory(resolvedDir)
 	c := Command(ctx, resolvedDir, "env", "GOFLAGS")
 	var stdout, stderr bytes.Buffer
 	c.Stdout, c.Stderr = &stdout, &stderr

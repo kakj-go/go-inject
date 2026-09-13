@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kakj-go/go-inject/internal/project"
 	"github.com/kakj-go/go-inject/internal/rewrite"
 )
 
@@ -106,6 +107,9 @@ func (s *Session) compile(ctx context.Context, args []string) ([]string, error) 
 	var sources []rewrite.Source
 	indices := map[string]int{}
 	names := s.Names()
+	if p := s.Packages[pkg]; p != nil {
+		names = project.SourceImports(p, names)
+	}
 	for i, a := range args {
 		if !strings.HasSuffix(a, ".go") {
 			continue
@@ -231,18 +235,58 @@ func scopeImports(r *rewrite.Result, includeMain bool) []string {
 	return out
 }
 
+func mainImports(r *rewrite.Result) []string {
+	copy := &rewrite.Result{Additions: map[string][]byte{}}
+	for name, data := range r.Additions {
+		if strings.HasPrefix(filepath.ToSlash(name), "main/") {
+			copy.Additions[name] = data
+		}
+	}
+	return scopeImports(copy, true)
+}
+
+func (s *Session) canonicalImport(caller, name string) string {
+	caller = strings.Split(caller, " [")[0]
+	if p := s.Packages[caller]; p != nil {
+		if canonical := project.CanonicalImport(p, name); canonical != name {
+			return canonical
+		}
+	}
+	if p := s.Packages[caller]; p != nil && p.Standard && !strings.HasPrefix(name, "vendor/") {
+		if q := s.Packages["vendor/"+name]; q != nil && q.Standard {
+			return "vendor/" + name
+		}
+		if st, e := os.Stat(filepath.Join(s.Env.GOROOT, "src", "vendor", filepath.FromSlash(name))); e == nil && st.IsDir() {
+			return "vendor/" + name
+		}
+	}
+	return name
+}
+
 func readImportcfg(p string) (map[string]string, []byte, error) {
 	b, e := os.ReadFile(p)
 	if e != nil {
 		return nil, nil, e
 	}
 	m := map[string]string{}
+	aliases := map[string]string{}
 	for _, line := range strings.Split(string(b), "\n") {
+		if strings.HasPrefix(line, "importmap ") {
+			pair := strings.SplitN(strings.TrimPrefix(line, "importmap "), "=", 2)
+			if len(pair) == 2 {
+				aliases[pair[0]] = pair[1]
+			}
+		}
 		if strings.HasPrefix(line, "packagefile ") {
 			pair := strings.SplitN(strings.TrimPrefix(line, "packagefile "), "=", 2)
 			if len(pair) == 2 {
 				m[pair[0]] = pair[1]
 			}
+		}
+	}
+	for raw, canonical := range aliases {
+		if archive := m[canonical]; archive != "" {
+			m[raw] = archive
 		}
 	}
 	return m, b, nil
@@ -262,6 +306,14 @@ func (s *Session) imports(ctx context.Context, path string, imports []string, ca
 	for _, p := range imports {
 		if p == "unsafe" || p == "C" || p == caller || p == "" || known[p] != "" {
 			continue
+		}
+		canonical := s.canonicalImport(caller, p)
+		if canonical != p {
+			fmt.Fprintf(&extra, "importmap %s=%s\n", p, canonical)
+			p = canonical
+			if known[p] != "" {
+				continue
+			}
 		}
 		exports, e := s.Exports(ctx, p, caller)
 		if e != nil {
@@ -300,7 +352,10 @@ func (s *Session) link(ctx context.Context, args []string) error {
 	}
 	needs := append([]string{}, s.Needs...)
 	for _, r := range rs {
-		needs = append(needs, r.Result.Imports...)
+		for _, p := range scopeImports(r.Result, false) {
+			needs = append(needs, s.canonicalImport(r.Package, p))
+		}
+		needs = append(needs, mainImports(r.Result)...)
 		for _, l := range r.Result.Links {
 			p, _, e := splitSymbol(l.Symbol)
 			if e != nil {

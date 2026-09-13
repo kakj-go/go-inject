@@ -104,7 +104,7 @@ func runOne(ctx context.Context, env project.Env, root *project.Package, flags [
 	goArgs = append(goArgs, "-overlay", filepath.Join(s.Dir, "overlay.json"), "-toolexec="+quoteTool(s.Executable), root.Base())
 	goArgs = append(goArgs, tail...)
 	c := project.Command(ctx, env.Dir, goArgs...)
-	c.Env = append(os.Environ(), SessionEnv+"="+filepath.Join(s.Dir, "session.json"))
+	c.Env = append(c.Environ(), SessionEnv+"="+filepath.Join(s.Dir, "session.json"))
 	c.Stdin = os.Stdin
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
