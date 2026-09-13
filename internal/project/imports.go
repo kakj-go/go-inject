@@ -9,7 +9,9 @@ import "strings"
 func CanonicalImport(pkg *Package, raw string) string {
 	if pkg != nil {
 		if canonical := pkg.ImportMap[raw]; canonical != "" {
-			return canonical
+			// go list annotates test variants with their owning test binary.
+			// That suffix is a graph identity, never a compiler import path.
+			return strings.Split(canonical, " [")[0]
 		}
 	}
 	return raw

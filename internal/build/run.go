@@ -56,6 +56,14 @@ func Run(ctx context.Context, dir, kind string, args []string) error {
 		}
 	}
 	for _, root := range roots {
+		if root.Base() == "command-line-arguments" {
+			root.EntryFiles = append([]string{}, patterns...)
+			for i, file := range root.EntryFiles {
+				if !filepath.IsAbs(file) {
+					root.EntryFiles[i] = filepath.Join(env.Dir, file)
+				}
+			}
+		}
 		if root.Error != nil {
 			return fmt.Errorf("entry %s: %s", root.ImportPath, root.Error.Err)
 		}
@@ -101,7 +109,8 @@ func runOne(ctx context.Context, env project.Env, root *project.Package, flags [
 	}
 	goArgs := []string{kind}
 	goArgs = append(goArgs, buildFlags...)
-	goArgs = append(goArgs, "-overlay", filepath.Join(s.Dir, "overlay.json"), "-toolexec="+quoteTool(s.Executable), root.Base())
+	goArgs = append(goArgs, "-overlay", filepath.Join(s.Dir, "overlay.json"), "-toolexec="+quoteTool(s.Executable))
+	goArgs = append(goArgs, s.EntryArgs...)
 	goArgs = append(goArgs, tail...)
 	c := project.Command(ctx, env.Dir, goArgs...)
 	c.Env = append(c.Environ(), SessionEnv+"="+filepath.Join(s.Dir, "session.json"))

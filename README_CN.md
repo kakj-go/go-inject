@@ -4,7 +4,7 @@
 
 用普通 Go 函数编写拦截逻辑，通过 import 启用规则，再构建包含注入代码的程序，或在 `vendor` 中生成可以直接查看的源码。
 
-**beta-0.1** · Go 1.26 及以上 · [规则参考](docs/rules_CN.md) · [可运行示例](examples/README_CN.md)
+**beta-0.1** · Go 1.26 与 1.27 · [规则参考](docs/rules_CN.md) · [可运行示例](examples/README_CN.md)
 
 ## 安装
 

@@ -31,6 +31,7 @@ type Package struct {
 	Error                                                                                                           *struct{ Err string }
 	DepsErrors                                                                                                      []struct{ Err string }
 	ImportMap                                                                                                       map[string]string
+	EntryFiles                                                                                                      []string
 }
 
 func (p *Package) Base() string { return strings.Split(p.ImportPath, " [")[0] }

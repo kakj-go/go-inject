@@ -93,7 +93,9 @@ func observeSnapshot(t *testing.T, f *fixture, output string) observedSnapshot {
 		t.Fatal(err)
 	}
 	decoded, decodeErr := hex.DecodeString(session.Fingerprint)
-	if decodeErr != nil || len(decoded) != sha256.Size || session.Fingerprint != basic.Fingerprint || filepath.Clean(session.Root.Dir) != filepath.Clean(f.dir) {
+	actualRoot, rootErr := os.Stat(session.Root.Dir)
+	fixtureRoot, fixtureErr := os.Stat(f.dir)
+	if decodeErr != nil || len(decoded) != sha256.Size || session.Fingerprint != basic.Fingerprint || rootErr != nil || fixtureErr != nil || !os.SameFile(actualRoot, fixtureRoot) {
 		t.Fatal("session ownership or fingerprint did not match this fixture")
 	}
 	expectedCache := filepath.Join(userCache, "go-inject", "v1", session.Fingerprint)

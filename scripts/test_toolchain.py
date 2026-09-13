@@ -57,9 +57,9 @@ class CompilerConfigurationTests(unittest.TestCase):
                  patch("configure_cgo.probe_compiler") as probe:
                 configure_cgo.main()
             # Actions prepends the last line first; this preserves setup-go.
-            self.assertEqual(path_file.read_text(encoding="utf-8").splitlines(), [str(compiler.parent), str(go.parent)])
+            self.assertEqual(path_file.read_text(encoding="utf-8").splitlines(), [str(compiler.resolve().parent), str(go.resolve().parent)])
             probe_path = probe.call_args.args[2]["PATH"].split(os.pathsep)
-            self.assertEqual(probe_path[:2], [str(go.parent), str(compiler.parent)])
+            self.assertEqual(probe_path[:2], [str(go.resolve().parent), str(compiler.resolve().parent)])
 
     def test_failed_c_probe_does_not_export_a_partial_configuration(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

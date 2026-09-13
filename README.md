@@ -4,7 +4,7 @@
 
 Write an ordinary Go function to intercept another Go function. Enable rules with imports, then build an instrumented binary or generate inspectable source in `vendor`.
 
-**beta-0.1** · Go 1.26 or newer · [Rule reference](docs/rules.md) · [Examples](examples/README.md)
+**beta-0.1** · Go 1.26 and 1.27 · [Rule reference](docs/rules.md) · [Examples](examples/README.md)
 
 ## Install
 

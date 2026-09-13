@@ -3,6 +3,7 @@
 package process
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
@@ -16,7 +17,7 @@ func processExited(pid int) (bool, error) {
 		// A killed orphan can remain a zombie until PID 1 reaps it, especially
 		// in containers. A zombie has exited and cannot execute compiler work.
 		data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
-		if os.IsNotExist(err) {
+		if os.IsNotExist(err) || errors.Is(err, unix.ESRCH) {
 			return true, nil
 		}
 		if err != nil {

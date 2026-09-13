@@ -31,6 +31,7 @@ type Session struct {
 	Rules                                                                []rewrite.Rule
 	Statuses                                                             []rules.Status
 	Flags                                                                []string
+	EntryArgs                                                            []string
 	Overlay                                                              map[string]string
 	Needs                                                                []string
 	UseCacheSnapshots                                                    bool
@@ -132,6 +133,10 @@ func Prepare(ctx context.Context, env project.Env, root *project.Package, flags 
 		return nil, err
 	}
 	s = &Session{Dir: dir, Kind: kind, RootPath: root.Base(), Root: root, Env: env, Flags: append([]string{}, flags...), Overlay: map[string]string{}}
+	s.EntryArgs = []string{root.Base()}
+	if len(root.EntryFiles) > 0 {
+		s.EntryArgs = append([]string{}, root.EntryFiles...)
+	}
 	defer func() {
 		if err != nil {
 			_ = os.RemoveAll(dir)
@@ -170,7 +175,7 @@ func Prepare(ctx context.Context, env project.Env, root *project.Package, flags 
 		}
 		listFlags = append(listFlags, "-overlay", p)
 	}
-	pkgs, err := project.List(ctx, env.Dir, listFlags, true, kind == "test", root.Base())
+	pkgs, err := project.List(ctx, env.Dir, listFlags, true, kind == "test", s.EntryArgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -319,6 +324,9 @@ func Prepare(ctx context.Context, env project.Env, root *project.Package, flags 
 			return nil, err
 		}
 		s.Overlay[logical] = physical
+		if len(root.EntryFiles) > 0 {
+			s.EntryArgs = append(s.EntryArgs, logical)
+		}
 	}
 	// Include local helper source changes; no ephemeral session paths enter the fingerprint.
 	fp := sha256.New()
@@ -349,6 +357,9 @@ func Prepare(ctx context.Context, env project.Env, root *project.Package, flags 
 		sort.Strings(all)
 		for _, f := range all {
 			file := filepath.Join(p.Dir, f)
+			if filepath.IsAbs(f) {
+				file = f
+			}
 			data, e := project.Read(file, s.Overlay)
 			if e == nil {
 				fp.Write([]byte(f))
