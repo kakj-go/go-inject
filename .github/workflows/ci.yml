@@ -59,9 +59,9 @@ jobs:
         run: python -m unittest discover -s scripts -p "test_*.py"
       - name: Validate workflows
         if: matrix.platform.runner == 'ubuntu-24.04' && matrix.go == '1.27.1'
-        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -shellcheck= -pyflakes= .github/workflows/ci.yml .github/workflows/release-artifacts.yml
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -shellcheck= -pyflakes= .github/workflows/ci.yml .github/workflows/release-artifacts.yml .github/workflows/install.yml
       - name: Unit and end-to-end tests
-        run: go test ./...
+        run: go test -v ./...
       - name: Build example tool
         run: go build -o bin/ ./cmd/go-inject
       - name: Executable examples

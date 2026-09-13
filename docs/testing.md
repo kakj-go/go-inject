@@ -52,6 +52,8 @@ Unit and end-to-end checks must cover:
 
 Keep targeted behavioral assertions. A source snapshot or successful compile cannot replace an assertion that the injected behavior ran and the original behavior remained correct.
 
+Native CI uses verbose test output to retain cold/warm build times, compilation counts, and no-op allocation measurements. The **Remote installation** workflow separately installs the CLI and aggregate rule module by an immutable commit SHA before tagging, and by the release version afterward. It uses empty module/build caches, the public Go proxy and checksum database, and an application with no local `replace` directives. Both frozen Go versions must pass before publication.
+
 ## Scope of the beta
 
 These tests validate the generic injection tool. They do not establish SkyWalking Agent compatibility, trace delivery, context propagation, telemetry performance, or OAP integration. Such integrations need their own runtime and end-to-end acceptance suites.

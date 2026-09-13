@@ -1,0 +1,43 @@
+name: Remote installation
+
+on:
+  workflow_dispatch:
+    inputs:
+      module-ref:
+        description: Immutable full commit SHA or published module tag
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  GOTOOLCHAIN: local
+  CGO_ENABLED: '0'
+
+jobs:
+  install:
+    name: Remote modules · Go ${{ matrix.go }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ['1.26.8', '1.27.1']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: ${{ matrix.go }}
+          cache: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Verify native installation toolchain
+        run: python scripts/check_toolchain.py --go-version "${{ matrix.go }}" --goos linux --goarch amd64 --cgo 0
+      - name: Install and execute remote modules with checksum verification
+        env:
+          MODULE_REF: ${{ inputs.module-ref }}
+        run: python scripts/verify_install.py --ref "$MODULE_REF"
