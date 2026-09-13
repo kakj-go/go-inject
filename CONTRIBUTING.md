@@ -10,12 +10,12 @@ Before editing, inspect `git status`. Preserve unrelated work. Prefer the simple
 
 ```sh
 gofmt -w <changed-go-files>
-go test ./...
+go test -timeout=30m ./...
 go build -o go-inject ./cmd/go-inject
 python examples/check.py --tool ./go-inject
 ```
 
-Use an `.exe` filename on Windows. Nested example modules are intentionally separate; root `go test ./...` does not run them. Run the real example CLI checks for changes to loading, source rewriting, dependencies, or backends.
+Use an `.exe` filename on Windows. Nested example modules are intentionally separate; root `go test -timeout=30m ./...` does not run them. Run the real example CLI checks for changes to loading, source rewriting, dependencies, or backends.
 
 Add a regression test for the observable failure. Check runtime results, not just transformed text. Avoid fixed ports, persistent services, external credentials, or mutation of the user's module cache. Temporary fixtures must clean up after success and retain useful diagnostics on failure.
 

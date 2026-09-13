@@ -36,7 +36,7 @@ python -m unittest discover -s scripts -p 'test_*.py'
 
 Unix 不会把编译器目录前置到 PATH，避免 `/usr/bin/go` 覆盖 setup-go。只有 Windows 为 GCC 运行时 DLL 增加编译器目录，并保持所选 Go 目录优先。随后校验实际 Go 可执行文件、精确版本、主机和目标系统/架构、`GOTOOLCHAIN=local` 及预期 CGO 设置。发布构建和归档验证任务也执行同样的检查。
 
-独立五平台任务使用两个 Go 版本运行 `go test -race ./internal/...`，不会用交叉编译代替原生执行。Linux amd64 额外验证两个 Gin 依赖基线。
+独立五平台任务使用两个 Go 版本运行 `go test -race -timeout=30m ./internal/...`，不会用交叉编译代替原生执行。Linux amd64 额外验证两个 Gin 依赖基线。
 
 ## 本地构建归档
 

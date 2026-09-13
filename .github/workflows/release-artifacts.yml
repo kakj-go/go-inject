@@ -44,7 +44,7 @@ jobs:
           python scripts/check_repository.py
           python scripts/check_snippets.py
           python -m unittest discover -s scripts -p 'test_*.py'
-          go test ./...
+          go test -timeout=30m ./...
       - name: Build and package
         env:
           RELEASE_VERSION: ${{ inputs.version }}

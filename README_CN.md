@@ -114,7 +114,7 @@ Go build/test 不会自动执行 generate。规则、依赖版本或相关平台
 ## 开发与许可证
 
 ```sh
-go test ./...
+go test -timeout=30m ./...
 go build -o bin/ ./cmd/go-inject
 python examples/check.py --tool bin/go-inject
 ```

@@ -8,7 +8,7 @@
 python scripts/check_repository.py
 python scripts/check_snippets.py
 python -m unittest discover -s scripts -p 'test_*.py'
-go test ./...
+go test -timeout=30m ./...
 go build -o go-inject ./cmd/go-inject
 python examples/check.py --tool ./go-inject
 ```
@@ -24,6 +24,8 @@ python examples/check.py gin external --gin-version v1.12.0 --tool ./go-inject
 ```
 
 脚本将示例复制到临时目录，解析模块，执行真实 CLI、运行二进制并检查行为。服务通过 `httptest` 使用端口 `0`，退出前自动关闭。`--keep-work` 保留副本，失败时自动保留。`--no-vendor` 跳过 vendor 验证。
+
+完整 E2E 会多次调用真实 Go 编译器，包级总超时显式设为 30 分钟，让较慢的原生 runner 也能跑完整套用例。每个子进程仍保留独立的较短超时，用于检测构建卡住。
 
 ## 示例断言
 

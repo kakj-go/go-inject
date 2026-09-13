@@ -10,12 +10,12 @@
 
 ```sh
 gofmt -w <修改的Go文件>
-go test ./...
+go test -timeout=30m ./...
 go build -o go-inject ./cmd/go-inject
 python examples/check.py --tool ./go-inject
 ```
 
-Windows 使用 `.exe` 文件名。嵌套示例是独立模块，根目录 `go test ./...` 不会运行它们。修改加载、改写、依赖和后端时，需要运行真实示例 CLI 验证。
+Windows 使用 `.exe` 文件名。嵌套示例是独立模块，根目录 `go test -timeout=30m ./...` 不会运行它们。修改加载、改写、依赖和后端时，需要运行真实示例 CLI 验证。
 
 针对可观察故障增加回归测试，检查运行结果，不能只检查改写文本。避免固定端口、常驻服务、外部凭据，以及修改用户模块缓存。临时夹具成功后清理，失败时保留有用诊断。
 

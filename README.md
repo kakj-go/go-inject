@@ -114,7 +114,7 @@ Compile-time mode is the foundation for a full SkyWalking-style integration. Ven
 ## Development and license
 
 ```sh
-go test ./...
+go test -timeout=30m ./...
 go build -o bin/ ./cmd/go-inject
 python examples/check.py --tool bin/go-inject
 ```

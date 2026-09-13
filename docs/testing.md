@@ -8,10 +8,12 @@
 python scripts/check_repository.py
 python scripts/check_snippets.py
 python -m unittest discover -s scripts -p 'test_*.py'
-go test ./...
+go test -timeout=30m ./...
 go build -o go-inject ./cmd/go-inject
 python examples/check.py --tool ./go-inject
 ```
+
+The E2E suite invokes real Go compilers repeatedly; the package timeout is explicitly 30 minutes so slower native runners can complete the whole suite. Each subprocess keeps its own shorter timeout to detect stalled builds.
 
 Use `./go-inject.exe` on Windows. The example runner needs Python 3.10 or newer and only its standard library. `GOINJECT_BINARY` can supply the absolute executable path instead of `--tool`.
 

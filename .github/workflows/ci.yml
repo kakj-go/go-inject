@@ -63,7 +63,7 @@ jobs:
         if: matrix.platform.runner == 'ubuntu-24.04' && matrix.go == '1.27.1'
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -shellcheck= -pyflakes= .github/workflows/ci.yml .github/workflows/release-artifacts.yml .github/workflows/install.yml
       - name: Unit and end-to-end tests
-        run: go test -v ./...
+        run: go test -v -timeout=30m ./...
       - name: Build example tool
         run: go build -o bin/ ./cmd/go-inject
       - name: Executable examples
@@ -107,4 +107,4 @@ jobs:
       - name: Verify native race toolchain after compiler setup
         run: python scripts/check_toolchain.py --go-version "${{ matrix.go }}" --goos "${{ matrix.platform.goos }}" --goarch "${{ matrix.platform.goarch }}" --cgo 1
       - name: Core, transaction, and process race tests
-        run: go test -race ./internal/...
+        run: go test -race -timeout=30m ./internal/...

@@ -36,7 +36,7 @@ Compiler setup prints the exact compiler version, compiles and runs a C program 
 
 Unix compiler directories are never prepended to PATH, so `/usr/bin/go` cannot override setup-go. Only Windows needs the GCC directory on PATH for runtime DLLs, and the selected Go directory remains ahead of it. A subsequent toolchain guard checks the actual Go executable, exact version, host and target OS/architecture, `GOTOOLCHAIN=local`, and expected CGO setting. The release build and archive-validation jobs apply the same guard.
 
-Separate five-platform jobs run `go test -race ./internal/...` with both Go versions. They do not substitute cross-compilation for native execution. Linux amd64 additionally runs both Gin dependency baselines.
+Separate five-platform jobs run `go test -race -timeout=30m ./internal/...` with both Go versions. They do not substitute cross-compilation for native execution. Linux amd64 additionally runs both Gin dependency baselines.
 
 ## Build archives locally
 
