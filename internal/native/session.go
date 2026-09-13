@@ -100,6 +100,9 @@ func ensure(ctx context.Context) (bundle, error) {
 			return bundle{}, e
 		}
 		cmd := exec.Command(exe, "__serve", dir)
+		// The server can outlive the last compiler until it observes Go exit.
+		// Do not retain the application's cwd and lock its directory on Windows.
+		cmd.Dir = dir
 		cmd.Stdin = nil
 		cmd.Stdout = log
 		cmd.Stderr = log
