@@ -397,6 +397,15 @@ func (s *Session) link(ctx context.Context, args []string) error {
 }
 
 func Inspect(dir string, asJSON bool) error {
+	// A failed compiler may leave partial records. Refresh them synchronously
+	// when requested, without a background flush racing the caller's cleanup.
+	s, e := ReadSession(filepath.Join(dir, "session.json"))
+	if e != nil {
+		return e
+	}
+	if e = s.Finish(); e != nil {
+		return e
+	}
 	b, e := os.ReadFile(filepath.Join(dir, "report.json"))
 	if e != nil {
 		return e

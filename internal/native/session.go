@@ -297,11 +297,9 @@ func Serve(ctx context.Context, dir string) (err error) {
 		return err
 	}
 	<-ctx.Done()
-	// A successful compiler/linker already persisted its report and snapshot.
-	// Keep failure diagnostics for -work, but never mark a canceled plan complete.
-	for _, s := range sessions {
-		_ = s.Finish()
-	}
+	// Compiler workers persist successful snapshots before returning to Go.
+	// Inspection materializes partial failure records on demand. Never write
+	// into the caller's temporary tree after Go exits: it may be removing it.
 	return nil
 }
 

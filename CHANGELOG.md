@@ -8,6 +8,7 @@
 - Real main/test-file targets, portable vendor state, input conflict checks, and transactional first delivery.
 - Native E2E coverage, retained-source inspection on cache hits, and tracing integration boundaries.
 - Background sessions use their own working directory so completed builds do not lock the application directory on Windows.
+- Session shutdown does not recreate removed temporary files; inspection refreshes partial compiler records on demand.
 - Breaking change: replace `go-inject build/test` with native `go build/test -toolexec="go-inject"`. Restore beta.1 vendor state with its original tool before regenerating; the new portable state uses format 2.
 
 - 使用原生 Go 构建与测试，通过 go generate 生成 vendor。
@@ -15,6 +16,7 @@
 - 真实 Go 类型绑定、main/测试源码模型与完整首次交付事务。
 - vendor 状态可迁移，缓存命中后仍可查看保留源码，明确追踪集成职责与生成模式边界。
 - 后台会话使用自身工作目录，避免构建完成后短暂锁住 Windows 应用目录。
+- 会话退出后不再重建已删除的临时文件，inspect 按需刷新编译器的部分记录。
 - 不兼容变更：使用原生 `go build/test -toolexec="go-inject"` 替代 `go-inject build/test`。beta.1 的 vendor 状态应先用原工具恢复，再重新生成；新的可迁移状态使用格式 2。
 
 ## beta-0.1 — v0.1.0-beta.1

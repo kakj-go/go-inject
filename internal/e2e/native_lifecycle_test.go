@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kakj-go/go-inject/internal/process"
 	proc "github.com/shirou/gopsutil/v4/process"
 )
 
@@ -32,14 +31,18 @@ func TestHeld(t *testing.T){
 `,
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	cmd := exec.Command(toolchainGo, "test", `-toolexec="`+cliBinary+`"`, "-count=1", ".")
+	cmd := exec.CommandContext(ctx, toolchainGo, "test", `-toolexec="`+cliBinary+`"`, "-work", "-count=1", ".")
+	cmd.WaitDelay = 5 * time.Second
 	cmd.Dir = f.dir
 	cmd.Env = environment(f.env)
 	var output bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &output, &output
 	done := make(chan error, 1)
-	go func() { done <- process.Run(ctx, cmd) }()
+	// Use a plain Go process, as a user's shell does. A test-owned Windows job
+	// would kill the background server at Go exit and hide lifecycle races.
+	go func() { done <- cmd.Run() }()
 	t.Cleanup(func() {
+		_ = os.WriteFile(filepath.Join(f.dir, "release"), nil, 0600)
 		cancel()
 		<-done
 	})
@@ -103,6 +106,16 @@ func TestHeld(t *testing.T){
 	if err != nil || !os.SameFile(actual, want) {
 		t.Fatalf("daemon still holds a business directory: cwd=%s, want its cache directory (%v)", cwd, err)
 	}
+	inspection := f.inspect("")
+	session := inspection.Session
+	if filepath.Clean(filepath.Dir(session)) != filepath.Clean(os.TempDir()) || !strings.HasPrefix(filepath.Base(session), "go-inject-") {
+		t.Fatalf("unexpected test session path: %s", session)
+	}
+	// All compiler actions are finished while TestHeld keeps Go alive. Removing
+	// this owned session now makes any late server writes deterministic.
+	if err := os.RemoveAll(session); err != nil {
+		t.Fatal(err)
+	}
 	f.write("release", "")
 	err = <-done
 	done <- err
@@ -113,5 +126,20 @@ func TestHeld(t *testing.T){
 	// caller to remove the application immediately, including on Windows.
 	if err := os.RemoveAll(f.dir); err != nil {
 		t.Fatalf("application remains locked after go test: %v", err)
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		running, _ := daemon.IsRunning()
+		states, _ := daemon.Status()
+		if !running || strings.Contains(strings.Join(states, ","), proc.Zombie) {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("native daemon did not exit after Go completed")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if _, err := os.Stat(session); !os.IsNotExist(err) {
+		t.Fatalf("daemon recreated a removed session after Go completed: %v", err)
 	}
 }

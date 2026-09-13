@@ -1,12 +1,48 @@
 package build
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/kakj-go/go-inject/internal/rewrite"
 )
+
+func TestInspectRefreshesPartialCompilerRecords(t *testing.T) {
+	s := &Session{Dir: t.TempDir(), Cache: t.TempDir(), RootPath: "example.test/p"}
+	if err := s.Save(); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Finish(); err != nil {
+		t.Fatal(err)
+	}
+	// Model a compiler that wrote its transformed input but failed before a
+	// successful root compilation could publish a complete snapshot.
+	r := Record{Package: s.RootPath, Result: &rewrite.Result{
+		Replacements: map[string][]byte{"p.go": []byte("package p\nfunc F() {}\n")},
+	}}
+	if err := s.writeRecord(r, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := Inspect(s.Dir, false); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(s.Dir, "report.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var report Report
+	if err := json.Unmarshal(data, &report); err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Packages) != 1 || report.Packages[0].Package != r.Package {
+		t.Fatalf("inspection omitted partial compiler records: %+v", report.Packages)
+	}
+	if s.SnapshotValid() {
+		t.Fatal("inspection marked a failed compilation as a complete cache snapshot")
+	}
+}
 
 func TestExecutionRecordsDoNotReturnPreflightSources(t *testing.T) {
 	s := &Session{Dir: t.TempDir(), Cache: t.TempDir(), UseCacheSnapshots: true}
