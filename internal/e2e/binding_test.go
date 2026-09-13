@@ -49,6 +49,17 @@ func TestSemanticBuiltinShadowDoesNotHideMismatch(t *testing.T) {
 	f.fails("signature mismatch", "build", ".")
 }
 
+func TestDependentReceiverConstraintsUseTemplateNames(t *testing.T) {
+	f := newFixture(t, map[string]string{
+		"main.go":       "package main\nimport \"example.test/app/lib\"\nfunc main(){v:=lib.Box[int,[]int]{Value:[]int{1,2}};println(v.Size())}\n",
+		"inject.go":     registration,
+		"lib/lib.go":    "package lib\ntype Box[A any,B ~[]A]struct{Value B}\nfunc(v *Box[A,B])Size()int{return len(v.Value)}\n",
+		"hooks/rule.go": "//inject:example.test/app/lib/lib.go\npackage hooks\ntype Box[X any,Y ~[]X]struct{Value Y}\nfunc(v *Box[X,Y])Size()(n int){defer func(){n++}();return 0}\n",
+	})
+	f.cli("build", "-o", "app"+exeSuffix(), ".")
+	f.run("app", "3")
+}
+
 func TestMainRuleBindsRealHelperFile(t *testing.T) {
 	f := newFixture(t, map[string]string{"main.go": "package main\nfunc main(){println(helper())}\n", "helpers.go": "package main\nfunc helper()int{return 1}\n", "inject.go": registration,
 		"hooks/rule.go": "//inject:main\npackage hooks\nfunc helper()(r int){defer func(){r++}();return 0}\n"})

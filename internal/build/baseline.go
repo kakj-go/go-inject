@@ -3,6 +3,7 @@ package build
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -17,12 +18,12 @@ func (s *Session) nativeBaselineArgs(args []string, kind string) ([]string, erro
 	out := make([]string, 0, len(args))
 	changed := false
 	for _, arg := range args {
-		if strings.HasSuffix(arg, ".go") {
+		if strings.HasSuffix(arg, ".go") || runtime.GOOS == "windows" && strings.HasSuffix(strings.ToLower(arg), ".go") {
 			logical := arg
 			if !filepath.IsAbs(logical) {
 				logical = filepath.Join(cwd, logical)
 			}
-			if replacement, ok := s.Overlay[filepath.Clean(logical)]; ok {
+			if replacement, ok := s.baselineFor(logical); ok {
 				changed = true
 				if replacement == "" {
 					continue
@@ -36,4 +37,31 @@ func (s *Session) nativeBaselineArgs(args []string, kind string) ([]string, erro
 		out = append([]string{out[0], "-srcdir", cwd}, out[1:]...)
 	}
 	return out, nil
+}
+
+func (s *Session) baselineFor(name string) (string, bool) {
+	name = filepath.Clean(name)
+	if replacement, ok := s.Overlay[name]; ok {
+		return replacement, true
+	}
+	identity := sourceIdentity(name)
+	for original, replacement := range s.Overlay {
+		if sourceIdentity(original) == identity {
+			return replacement, true
+		}
+	}
+	return "", false
+}
+
+func sourceIdentity(name string) string {
+	if abs, err := filepath.Abs(name); err == nil {
+		name = abs
+	}
+	if resolved, err := filepath.EvalSymlinks(name); err == nil {
+		name = resolved
+	}
+	if runtime.GOOS == "windows" {
+		name = strings.ToLower(name)
+	}
+	return filepath.Clean(name)
 }

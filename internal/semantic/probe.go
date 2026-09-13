@@ -169,7 +169,7 @@ func unnamedFields(list *ast.FieldList) *ast.FieldList {
 	return out
 }
 
-func (p *probe) constraintExpr(tp *types.TypeParam) ast.Expr {
+func (p *probe) constraintExpr(tp *types.TypeParam, renames map[string]string) (ast.Expr, error) {
 	// Named target constraints use the mirror and retain their private identity.
 	value := types.TypeString(tp.Constraint(), func(pkg *types.Package) string {
 		for alias, path := range p.imports {
@@ -184,7 +184,20 @@ func (p *probe) constraintExpr(tp *types.TypeParam) ast.Expr {
 	})
 	expr, err := parser.ParseExpr(value)
 	if err != nil {
-		return ast.NewIdent("any")
+		return nil, err
 	}
-	return expr
+	expr = astutil.Apply(expr, func(c *astutil.Cursor) bool {
+		id, ok := c.Node().(*ast.Ident)
+		if !ok {
+			return true
+		}
+		if _, qualified := c.Parent().(*ast.SelectorExpr); qualified {
+			return false
+		}
+		if name := renames[id.Name]; name != "" {
+			id.Name = name
+		}
+		return true
+	}, nil).(ast.Expr)
+	return expr, nil
 }

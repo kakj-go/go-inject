@@ -88,6 +88,13 @@ type fixture struct {
 func newFixture(t *testing.T, files map[string]string) *fixture {
 	t.Helper()
 	f := &fixture{t: t, dir: t.TempDir(), env: map[string]string{"GOPROXY": "off", "GOSUMDB": "off", "GOWORK": "off", "GOFLAGS": ""}}
+	// Native Go resolves workspace roots before invoking toolexec. Keep the
+	// fixture cwd and GOWORK on one spelling (macOS /var -> /private/var).
+	if canonical, err := filepath.EvalSymlinks(f.dir); err == nil {
+		f.dir = canonical
+	} else {
+		t.Fatal(err)
+	}
 	if files["go.mod"] == "" {
 		files["go.mod"] = "module example.test/app\n\ngo 1.26.0\n"
 	}

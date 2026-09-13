@@ -278,9 +278,6 @@ func Serve(ctx context.Context, dir string) (err error) {
 		}
 		out.Sessions = append(out.Sessions, filepath.Join(s.Dir, "session.json"))
 	}
-	if err = writeJSON(filepath.Join(dir, "ready.json"), out); err != nil {
-		return err
-	}
 	if project.Has(flags, "work") {
 		name, e := latestPath(env.Dir)
 		if e != nil {
@@ -292,6 +289,9 @@ func Serve(ctx context.Context, dir string) (err error) {
 		if e = writeJSON(name, out); e != nil {
 			return e
 		}
+	}
+	if err = writeJSON(filepath.Join(dir, "ready.json"), out); err != nil {
+		return err
 	}
 	<-ctx.Done()
 	// A successful compiler/linker already persisted its report and snapshot.

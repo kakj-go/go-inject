@@ -132,12 +132,22 @@ func (m *Model) Bind(path string, sources []rewrite.Source, rules []rewrite.Rule
 							return nil, fail(fn, fmt.Errorf("receiver type parameter count mismatch"))
 						}
 						probeFn.Type.TypeParams = &ast.FieldList{}
+						renames := map[string]string{}
+						for j, index := range indices {
+							if id, ok := index.(*ast.Ident); ok {
+								renames[actual.RecvTypeParams().At(j).Obj().Name()] = id.Name
+							}
+						}
 						for j, index := range indices {
 							id, ok := index.(*ast.Ident)
 							if !ok {
 								return nil, fail(fn, fmt.Errorf("invalid receiver type parameter"))
 							}
-							probeFn.Type.TypeParams.List = append(probeFn.Type.TypeParams.List, &ast.Field{Names: []*ast.Ident{id}, Type: p.constraintExpr(actual.RecvTypeParams().At(j))})
+							constraint, err := p.constraintExpr(actual.RecvTypeParams().At(j), renames)
+							if err != nil {
+								return nil, fail(fn, err)
+							}
+							probeFn.Type.TypeParams.List = append(probeFn.Type.TypeParams.List, &ast.Field{Names: []*ast.Ident{id}, Type: constraint})
 						}
 					}
 				}
