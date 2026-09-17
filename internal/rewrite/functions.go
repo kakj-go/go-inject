@@ -35,12 +35,12 @@ func (e *engine) applyFunctions(rule *template) error {
 		key := functionName(fn)
 		var candidates []*functionDecl
 		for _, candidate := range e.functions[key] {
-			if candidate.file == targetFile || rule.rule.Target == "main" {
+			if rule.rule.Target == "main" || rule.rule.File == "" || candidate.file == targetFile {
 				candidates = append(candidates, candidate)
 			}
 		}
 		if len(candidates) != 1 {
-			return fmt.Errorf("rule %s: function %s matched %d declarations in %s", rule.id, key, len(candidates), targetFile.path)
+			return fmt.Errorf("rule %s: function %s matched %d declarations in %s", rule.id, key, len(candidates), e.scopeName(rule, targetFile))
 		}
 		target := candidates[0]
 		if target.fn.Body == nil {
@@ -54,11 +54,13 @@ func (e *engine) applyFunctions(rule *template) error {
 			return fmt.Errorf("rule %s: %w", rule.id, err)
 		}
 		if !target.bound {
-			bindTarget(target)
+			bindTarget(target, e.literalFieldKeys(target.file, target.fn))
 			target.bound = true
 		}
 		copy := clone(fn).(*dst.FuncDecl)
-		if err := bindTemplate(copy, target.fn, rule.id); err != nil {
+		if err := bindTemplate(copy, target.fn, rule.id, func(root dst.Node) map[*dst.Ident]bool {
+			return e.literalFieldKeys(rule.file, root)
+		}); err != nil {
 			return fmt.Errorf("rule %s: %w", rule.id, err)
 		}
 		body := copy.Body
@@ -153,7 +155,56 @@ func (e *engine) signaturePair(rule *template, fn *dst.FuncDecl, target *functio
 	return leftRecv + " " + left, rightRecv + " " + right, nil
 }
 
-func bindTarget(target *functionDecl) {
+// literalFieldKeys collects the KeyValueExpr key identifiers of composite
+// literals that are not map literals. Struct-literal keys are field names,
+// never variable references, so renamers must keep their spelling even when
+// go/parser's object resolution attaches a parameter object to them. Map
+// literal keys are index expressions — ordinary variable references — and
+// stay renamable. Literals whose type cannot be resolved are treated like
+// struct literals (the conservative pre-existing behavior).
+func (e *engine) literalFieldKeys(file *parsedFile, root dst.Node) map[*dst.Ident]bool {
+	fieldKeys := map[*dst.Ident]bool{}
+	dst.Inspect(root, func(n dst.Node) bool {
+		lit, ok := n.(*dst.CompositeLit)
+		if !ok {
+			return true
+		}
+		if e.isMapType(file, lit.Type, map[string]bool{}) {
+			return true
+		}
+		for _, elt := range lit.Elts {
+			if kv, ok := elt.(*dst.KeyValueExpr); ok {
+				if id, ok := kv.Key.(*dst.Ident); ok {
+					fieldKeys[id] = true
+				}
+			}
+		}
+		return true
+	})
+	return fieldKeys
+}
+
+// isMapType reports whether expr denotes a map type, following package-level
+// named types (Fields{key: value} keys are variable references, not field
+// names). Unresolvable types report false.
+func (e *engine) isMapType(file *parsedFile, expr dst.Expr, seen map[string]bool) bool {
+	if expr == nil {
+		return false
+	}
+	t, err := e.typeContext(file).expr(expr)
+	if err == nil && strings.HasPrefix(t, "map[") {
+		return true
+	}
+	if id, ok := expr.(*dst.Ident); ok && !seen[id.Name] {
+		if decl, exists := e.types[id.Name]; exists && decl.spec != nil && decl.spec.Type != nil {
+			seen[id.Name] = true
+			return e.isMapType(decl.file, decl.spec.Type, seen)
+		}
+	}
+	return false
+}
+
+func bindTarget(target *functionDecl, literalKeys map[*dst.Ident]bool) {
 	used := map[string]bool{}
 	dst.Inspect(target.fn, func(n dst.Node) bool {
 		if id, ok := n.(*dst.Ident); ok {
@@ -186,8 +237,14 @@ func bindTarget(target *functionDecl) {
 			}
 		}
 	}
+	// Composite-literal keys collected by literalFieldKeys: struct-literal
+	// keys are field names and keep their spelling while parameters rename
+	// around them; map-literal keys are expressions and rename normally.
 	dst.Inspect(target.fn, func(n dst.Node) bool {
 		if id, ok := n.(*dst.Ident); ok {
+			if literalKeys[id] {
+				return true
+			}
 			if name, exists := bindings[id.Obj]; exists {
 				id.Name = name
 			}
@@ -196,7 +253,7 @@ func bindTarget(target *functionDecl) {
 	})
 }
 
-func bindTemplate(fn, target *dst.FuncDecl, rule string) error {
+func bindTemplate(fn, target *dst.FuncDecl, rule string, fieldKeys func(dst.Node) map[*dst.Ident]bool) error {
 	bindings := map[*dst.Object]string{}
 	generic := map[string]string{}
 	groups := []struct{ from, to *dst.FieldList }{{fn.Recv, target.Recv}, {fn.Type.Params, target.Type.Params}, {fn.Type.Results, target.Type.Results}, {fn.Type.TypeParams, target.Type.TypeParams}}
@@ -245,7 +302,7 @@ func bindTemplate(fn, target *dst.FuncDecl, rule string) error {
 		}
 		return true
 	}, nil)
-	hygienicLocals(fn.Body, rule, bindings)
+	hygienicLocals(fn.Body, rule, bindings, fieldKeys(fn.Body))
 	// Labels have function scope rather than block scope. Prefix each template's
 	// labels so two otherwise isolated template blocks cannot conflict.
 	digest := sha256.Sum256([]byte(rule))
@@ -272,7 +329,7 @@ func bindTemplate(fn, target *dst.FuncDecl, rule string) error {
 	return nil
 }
 
-func hygienicLocals(body dst.Node, identity string, excluded map[*dst.Object]string) {
+func hygienicLocals(body dst.Node, identity string, excluded map[*dst.Object]string, literalKeys map[*dst.Ident]bool) {
 	digest := sha256.Sum256([]byte(identity))
 	locals := map[*dst.Object]string{}
 	used := map[string]bool{}
@@ -342,6 +399,11 @@ func hygienicLocals(body dst.Node, identity string, excluded map[*dst.Object]str
 	})
 	dst.Inspect(body, func(n dst.Node) bool {
 		if id, ok := n.(*dst.Ident); ok {
+			if literalKeys[id] {
+				// Struct-literal field-name keys spelled like a local keep
+				// their spelling; only map-index keys rename with the local.
+				return true
+			}
 			if name, exists := locals[id.Obj]; exists {
 				id.Name = name
 			}

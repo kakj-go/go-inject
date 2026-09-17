@@ -4,11 +4,11 @@
 
 Intercept Go functions with ordinary Go templates. Use the native Go toolchain to inject during compilation, or generate readable dependency source in vendor.
 
-**Go 1.26 / 1.27** · [Usage](docs/usage.md) · [Rules](docs/rules.md) · [Examples](examples/README.md)
+**Go 1.25 / 1.26 / 1.27** · [Usage](docs/usage.md) · [Rules](docs/rules.md) · [Examples](examples/README.md)
 
 ## Install
 
-Install the **beta-0.2** prerelease with Go 1.26 or 1.27:
+Install the **beta-0.2** prerelease with Go 1.25, 1.26, or 1.27:
 
 ```sh
 go install github.com/kakj-go/go-inject/cmd/go-inject@v0.1.0-beta.2

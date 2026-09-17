@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -20,7 +21,7 @@ func fixture(t *testing.T) string {
 	t.Setenv("GOPACKAGESDRIVER", "off")
 	t.Setenv("GOTOOLCHAIN", runtime.Version())
 	dir := t.TempDir()
-	writeFixture(t, filepath.Join(dir, "go.mod"), "module example.com/app\ngo 1.26.0\n")
+	writeFixture(t, filepath.Join(dir, "go.mod"), "module example.com/app\ngo 1.25.0\n")
 	writeFixture(t, filepath.Join(dir, "main.go"), "package main\nfunc main() {}\n")
 	return dir
 }
@@ -90,7 +91,7 @@ func TestFlagsAreTokenAwareAndLastTagsWin(t *testing.T) {
 func TestResolveArgsChdirPersistentFlagsAndOverrides(t *testing.T) {
 	dir := fixture(t)
 	child := filepath.Join(dir, "child")
-	writeFixture(t, filepath.Join(child, "go.mod"), "module example.com/child\ngo 1.26.0\n")
+	writeFixture(t, filepath.Join(child, "go.mod"), "module example.com/child\ngo 1.25.0\n")
 	goenv := filepath.Join(dir, "goenv")
 	writeFixture(t, goenv, "GOFLAGS=-tags=persisted -mod=readonly\n")
 	t.Setenv("GOENV", goenv)
@@ -151,8 +152,13 @@ func TestEnvironmentUsesTargetToolContext(t *testing.T) {
 	if !reflect.DeepEqual(c.BuildTags, []string{"last", "goinject"}) {
 		t.Fatalf("build tags = %q", c.BuildTags)
 	}
-	if !slices.Contains(c.ReleaseTags, "go1.26") {
-		t.Fatalf("release tags = %q", c.ReleaseTags)
+	minor := runtime.Version()
+	if _, ok := strings.CutPrefix(minor, "go1."); !ok {
+		t.Fatalf("unexpected runtime version %s", minor)
+	}
+	current := "go1." + strings.SplitN(minor, ".", 3)[1]
+	if !slices.Contains(c.ReleaseTags, current) {
+		t.Fatalf("release tags = %q, missing %s", c.ReleaseTags, current)
 	}
 	if c.Compiler != "gc" {
 		t.Fatalf("compiler = %q", c.Compiler)
@@ -161,8 +167,8 @@ func TestEnvironmentUsesTargetToolContext(t *testing.T) {
 
 func TestMetadataKeepsGoPackageNameAndSkipsUnusedImports(t *testing.T) {
 	dir := fixture(t)
-	writeFixture(t, filepath.Join(dir, "go.mod"), "module example.com/app\ngo 1.26.0\nrequire example.com/hooks v1.0.0\nreplace example.com/hooks => ./hooks\n")
-	writeFixture(t, filepath.Join(dir, "hooks", "go.mod"), "module example.com/hooks\ngo 1.26.0\n")
+	writeFixture(t, filepath.Join(dir, "go.mod"), "module example.com/app\ngo 1.25.0\nrequire example.com/hooks v1.0.0\nreplace example.com/hooks => ./hooks\n")
+	writeFixture(t, filepath.Join(dir, "hooks", "go.mod"), "module example.com/hooks\ngo 1.25.0\n")
 	writeFixture(t, filepath.Join(dir, "hooks", "v3", "rule.go"), "package actualname\nimport _ \"missing.example/unselected\"\nfunc F() {}\n")
 	p, err := Metadata(context.Background(), dir, nil, "example.com/hooks/v3")
 	if err != nil {
@@ -186,8 +192,8 @@ func TestMetadataKeepsGoPackageNameAndSkipsUnusedImports(t *testing.T) {
 
 func TestMetadataRespectsVendorAndWorkspace(t *testing.T) {
 	dir := fixture(t)
-	writeFixture(t, filepath.Join(dir, "go.mod"), "module example.com/app\ngo 1.26.0\nrequire example.com/provider v1.0.0\nreplace example.com/provider => ./provider\n")
-	writeFixture(t, filepath.Join(dir, "provider", "go.mod"), "module example.com/provider\ngo 1.26.0\n")
+	writeFixture(t, filepath.Join(dir, "go.mod"), "module example.com/app\ngo 1.25.0\nrequire example.com/provider v1.0.0\nreplace example.com/provider => ./provider\n")
+	writeFixture(t, filepath.Join(dir, "provider", "go.mod"), "module example.com/provider\ngo 1.25.0\n")
 	writeFixture(t, filepath.Join(dir, "provider", "rules", "rule.go"), "package actualname\nfunc F() {}\n")
 	writeFixture(t, filepath.Join(dir, "goinject.go"), "//go:build goinject\n\npackage main\nimport _ \"example.com/provider/rules\"\n")
 	if output, err := Command(context.Background(), dir, "mod", "vendor").CombinedOutput(); err != nil {
@@ -201,7 +207,7 @@ func TestMetadataRespectsVendorAndWorkspace(t *testing.T) {
 		t.Fatalf("vendor metadata = %+v", p)
 	}
 	workfile := filepath.Join(dir, "go.work")
-	writeFixture(t, workfile, "go 1.26.0\nuse (\n.\n./provider\n)\n")
+	writeFixture(t, workfile, "go 1.25.0\nuse (\n.\n./provider\n)\n")
 	t.Setenv("GOWORK", workfile)
 	p, err = Metadata(context.Background(), dir, []string{"-mod=readonly"}, "example.com/provider/rules")
 	if err != nil {

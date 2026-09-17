@@ -11,6 +11,12 @@ import (
 
 func source(name, code string) Source { return Source{Path: name, Data: []byte(code)} }
 func rule(id, target, code string) Rule {
+	// Accept legacy "package/file.go" targets and split them the way Header
+	// does, so tests read naturally in either target form.
+	if target != "main" && strings.HasSuffix(target, ".go") {
+		dir, file := filepath.Split(filepath.ToSlash(target))
+		return Rule{ID: id, Provider: "example.test/rules", Path: id + ".go", Target: strings.TrimSuffix(dir, "/"), File: file, Source: []byte(code)}
+	}
 	return Rule{ID: id, Provider: "example.test/rules", Path: id + ".go", Target: target, Source: []byte(code)}
 }
 
@@ -23,7 +29,7 @@ func execute(t *testing.T, sources []Source, result *Result, want string) {
 			t.Fatal(err)
 		}
 	}
-	write("go.mod", []byte("module example.test/target\n\ngo 1.26.0\n"))
+	write("go.mod", []byte("module example.test/target\n\ngo 1.25.0\n"))
 	for _, s := range sources {
 		data := s.Data
 		if replacement, exists := result.Replacements[s.Path]; exists {
@@ -209,10 +215,13 @@ func F(){}
 	for _, test := range []struct{ name, target, code, reason string }{
 		{"file", "example.test/target/missing.go", "package target\nfunc F(){}", "matched 0 files"},
 		{"function", "example.test/target/target.go", "package target\nfunc Missing(){}", "matched 0 declarations"},
+		{"package-function", "example.test/target", "package target\nfunc Missing(){}", "matched 0 declarations"},
+		{"package-conflict", "example.test/target", "package target\nfunc Ambiguous(){}", "matched 0 declarations"},
 		{"type", "example.test/target/target.go", "package target\ntype Missing struct{}", "does not exist"},
 		{"field", "example.test/target/target.go", "package target\ntype T struct{missing int}", "does not exist"},
 		{"duplicate", "example.test/target/target.go", "package target\n//inject:add\nfunc F(){}", "already exists"},
 		{"order", "example.test/target/target.go", "package target\n//inject:order invalid\nfunc F(){}", "invalid //inject:order"},
+		{"package-mismatch", "example.test/other", "package target\nfunc F(){}", "does not match"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			before := string(sources[0].Data)
@@ -224,6 +233,35 @@ func F(){}
 				t.Fatal("input changed")
 			}
 		})
+	}
+}
+
+func TestPackageLevelTargetMatchesAcrossFiles(t *testing.T) {
+	sources := []Source{
+		source("main.go", `package main
+func main(){println(F()+G())}
+`),
+		source("first.go", `package main
+func F() int { return 3 }
+`),
+		source("second.go", `package main
+func G() int { return 4 }
+`),
+	}
+	rules := []Rule{
+		rule("first", "example.test/target", `package main
+func F() int { defer func(){}(); return 3 }
+`),
+	}
+	result, err := Package("example.test/target", sources, rules)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Replacements) != 1 {
+		t.Fatalf("replacements: %#v", result.Replacements)
+	}
+	if _, ok := result.Replacements["first.go"]; !ok {
+		t.Fatalf("expected first.go to be rewritten, got %#v", result.Replacements)
 	}
 }
 

@@ -68,7 +68,7 @@ jobs:
       fail-fast: false
       max-parallel: 6
       matrix:
-        go: ['1.26.8', '1.27.1']
+        go: ['1.25.8', '1.26.8', '1.27.1']
         platform:
           - {runner: ubuntu-24.04, goos: linux, goarch: amd64, arch: x64}
           - {runner: ubuntu-24.04-arm, goos: linux, goarch: arm64, arch: arm64}

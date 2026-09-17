@@ -13,11 +13,11 @@ import (
 func proxyFixture(t *testing.T) *fixture {
 	t.Helper()
 	f := newFixture(t, map[string]string{
-		"go.mod":    "module example.test/app\ngo 1.26.0\nrequire example.test/library v1.2.0\n",
+		"go.mod":    "module example.test/app\ngo 1.25.0\nrequire example.test/library v1.2.0\n",
 		"main.go":   "package main\nimport \"example.test/library\"\nfunc main(){println(library.Value())}\n",
 		"inject.go": registration,
 	})
-	const module = "module example.test/library\ngo 1.26.0\n"
+	const module = "module example.test/library\ngo 1.25.0\n"
 	f.write("proxy/example.test/library/@v/list", "v1.2.0\n")
 	f.write("proxy/example.test/library/@v/v1.2.0.info", `{"Version":"v1.2.0","Time":"2026-01-01T00:00:00Z"}`)
 	f.write("proxy/example.test/library/@v/v1.2.0.mod", module)
@@ -71,10 +71,10 @@ func TestVersionVariantsRejectOverlapAndZeroMatches(t *testing.T) {
 
 func TestVersionConstraintRejectsUnknownLocalReplacement(t *testing.T) {
 	f := newFixture(t, map[string]string{
-		"go.mod":             "module example.test/app\ngo 1.26.0\nrequire example.test/library v1.2.0\nreplace example.test/library => ./library\n",
+		"go.mod":             "module example.test/app\ngo 1.25.0\nrequire example.test/library v1.2.0\nreplace example.test/library => ./library\n",
 		"main.go":            "package main\nimport \"example.test/library\"\nfunc main(){println(library.Value())}\n",
 		"inject.go":          registration,
-		"library/go.mod":     "module example.test/library\ngo 1.26.0\n",
+		"library/go.mod":     "module example.test/library\ngo 1.25.0\n",
 		"library/library.go": "package library\nfunc Value()int{return 2}\n",
 		"hooks/hook.go":      variant(">=v1.0.0", "func Value()(out int){return 0}"),
 	})

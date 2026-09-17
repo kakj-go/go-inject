@@ -9,12 +9,15 @@ type Source struct {
 	ImportNames map[string]string
 }
 
-// Rule is a selected template. Target names a package/file.go or main.
+// Rule is a selected template. Target names a package ("main" for the
+// application entry); File optionally narrows a file target to one named
+// source file within that package, and is empty for package-level targets
+// whose declarations match anywhere in the package.
 // Provider and ID distinguish independently distributed injection templates.
 type Rule struct {
-	Path, Target, Provider, ID string
-	Source                     []byte
-	ImportNames                map[string]string
+	Path, Target, File, Provider, ID string
+	Source                           []byte
+	ImportNames                      map[string]string
 	// Bindings is populated by Go type checking. Syntax pairs ensure workers
 	// apply the proof to exactly the declarations which were checked.
 	Bindings map[string]Binding

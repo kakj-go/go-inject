@@ -47,12 +47,12 @@ func BindingShapes(pkg string, sources []Source, rule Rule) (map[string]Binding,
 			}
 			var found []*functionDecl
 			for _, candidate := range e.functions[functionName(fn)] {
-				if rule.Target == "main" || candidate.file == targetFile {
+				if rule.Target == "main" || rule.File == "" || candidate.file == targetFile {
 					found = append(found, candidate)
 				}
 			}
 			if len(found) != 1 {
-				return nil, fmt.Errorf("rule %s: function %s matched %d declarations in %s", r.id, functionName(fn), len(found), targetFile.path)
+				return nil, fmt.Errorf("rule %s: function %s matched %d declarations in %s", r.id, functionName(fn), len(found), e.scopeName(r, targetFile))
 			}
 			left, right, err := e.signaturePair(r, fn, found[0])
 			if err != nil {

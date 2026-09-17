@@ -25,6 +25,11 @@ func (s *Session) loadBridgePackages(ctx context.Context, flags []string) error 
 			for _, c := range g.List {
 				parts := strings.Fields(c.Text)
 				if len(parts) == 3 && parts[0] == "//go:linkname" {
+					// Self-linknames (//go:linkname X X) rename a symbol inside
+					// the target package instead of bridging to another one.
+					if parts[1] == parts[2] {
+						continue
+					}
 					pkg, _, e := splitSymbol(parts[2])
 					if e != nil {
 						return e
@@ -90,6 +95,20 @@ func (s *Session) typeEnvironment(flags []string) ([]string, []string, error) {
 		}
 		return m.Dir
 	}
+	// Directory replacements require a go.mod inside the target directory.
+	// Legacy modules published before go.mod existed (github.com/pkg/errors
+	// and friends) extract without one; the proxy serves their module file
+	// separately, so resolving them normally is correct while replacing them
+	// breaks. Such modules never carry overlays, so skipping their
+	// replacement only means they resolve inside the type cache.
+	replacable := func(m *project.Module) bool {
+		dir := directory(m)
+		if dir == "" {
+			return false
+		}
+		_, err := os.Stat(filepath.Join(dir, "go.mod"))
+		return err == nil
+	}
 	flags = project.Remove(project.Remove(flags, "modfile", true), "mod", true)
 	if s.Env.GOWORK != "" && s.Env.GOWORK != "off" {
 		work, e := modfile.ParseWork("types.work", []byte("go "+strings.TrimPrefix(s.Env.GOVERSION, "go")+"\n"), nil)
@@ -100,6 +119,9 @@ func (s *Session) typeEnvironment(flags []string) ([]string, []string, error) {
 			m := modules[key]
 			dir := directory(m)
 			if dir == "" {
+				continue
+			}
+			if !replacable(m) {
 				continue
 			}
 			if m.Main {
@@ -136,11 +158,10 @@ func (s *Session) typeEnvironment(flags []string) ([]string, []string, error) {
 		if m.Main {
 			continue
 		}
-		dir := directory(m)
-		if dir == "" {
+		if !replacable(m) {
 			continue
 		}
-		if e = file.AddReplace(m.Path, "", dir, ""); e != nil {
+		if e = file.AddReplace(m.Path, "", directory(m), ""); e != nil {
 			return nil, nil, e
 		}
 	}

@@ -73,7 +73,7 @@ def main() -> None:
     parser.add_argument("--commit", required=True)
     parser.add_argument("--goos", choices=("linux", "windows", "darwin"), required=True)
     parser.add_argument("--goarch", choices=("amd64", "arm64"), required=True)
-    parser.add_argument("--go-version", choices=("1.26.8", "1.27.1"), required=True)
+    parser.add_argument("--go-version", choices=("1.25.8", "1.26.8", "1.27.1"), required=True)
     args = parser.parse_args()
     if not VERSION_PATTERN.fullmatch(args.version) or re.fullmatch(r"[0-9a-f]{40}", args.commit) is None:
         parser.error("invalid release version or commit")

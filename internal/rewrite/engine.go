@@ -320,20 +320,32 @@ func (e *engine) targetFile(rule *template) (*parsedFile, error) {
 		}
 		return e.sources[0], nil
 	}
-	target := strings.ReplaceAll(rule.rule.Target, "\\", "/")
-	if path.Dir(target) != e.importPath {
-		return nil, fmt.Errorf("rule %s: target package %s does not match %s", rule.id, path.Dir(target), e.importPath)
+	if rule.rule.Target != e.importPath {
+		return nil, fmt.Errorf("rule %s: target package %s does not match %s", rule.id, rule.rule.Target, e.importPath)
+	}
+	if rule.rule.File == "" {
+		// Package-level target: matching happens across the whole package.
+		return nil, nil
 	}
 	var matched []*parsedFile
 	for _, file := range e.sources {
-		if path.Base(target) == filepath.Base(file.path) {
+		if rule.rule.File == filepath.Base(file.path) {
 			matched = append(matched, file)
 		}
 	}
 	if len(matched) != 1 {
-		return nil, fmt.Errorf("rule %s (%s): target %s matched %d files in %s", rule.id, rule.rule.Path, rule.rule.Target, len(matched), e.importPath)
+		return nil, fmt.Errorf("rule %s (%s): target %s matched %d files in %s", rule.id, rule.rule.Path, rule.rule.Target+"/"+rule.rule.File, len(matched), e.importPath)
 	}
 	return matched[0], nil
+}
+
+// scopeName names the search scope in errors: the matched file for file
+// targets, or the package import path for package-level targets.
+func (e *engine) scopeName(rule *template, file *parsedFile) string {
+	if file != nil {
+		return file.path
+	}
+	return e.importPath
 }
 
 func (e *engine) record(rule *template, file *parsedFile, name string, order int) {

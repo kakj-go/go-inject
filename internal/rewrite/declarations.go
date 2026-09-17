@@ -170,6 +170,14 @@ func (e *engine) addDeclaration(rule *template, decl dst.Decl) error {
 		dst.Inspect(decl, func(n dst.Node) bool {
 			if n != nil {
 				for _, comment := range n.Decorations().Start {
+					fields := strings.Fields(comment)
+					// Self-linknames (//go:linkname X X) rename a symbol to a
+					// bare name so other packages can pull it; they stay
+					// valid on value declarations. Anything else on a
+					// non-function declaration is an unvalidatable bridge.
+					if len(fields) == 3 && fields[0] == "//go:linkname" && fields[1] == fields[2] && !strings.Contains(fields[2], ".") {
+						continue
+					}
 					if strings.HasPrefix(comment, "//go:linkname ") {
 						invalid = true
 					}
@@ -205,7 +213,7 @@ func (e *engine) addDeclaration(rule *template, decl dst.Decl) error {
 	}
 	copy := clone(decl).(dst.Decl)
 	if fn, ok := copy.(*dst.FuncDecl); ok && fn.Body != nil {
-		hygienicLocals(fn.Body, rule.id+":"+fn.Name.Name, nil)
+		hygienicLocals(fn.Body, rule.id+":"+fn.Name.Name, nil, e.literalFieldKeys(rule.file, fn.Body))
 	}
 	if routeMain && e.importPath != "main" && e.sources[0].file.Name.Name != "main" {
 		if err := e.validateMainBindings(rule, copy); err != nil {

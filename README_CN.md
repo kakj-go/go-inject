@@ -4,11 +4,11 @@
 
 用普通 Go 模板拦截 Go 函数，通过原生 Go 工具链在编译时注入，或在 vendor 中生成可以直接查看的依赖源码。
 
-**Go 1.26 / 1.27** · [使用说明](docs/usage_CN.md) · [规则参考](docs/rules_CN.md) · [示例](examples/README_CN.md)
+**Go 1.25 / 1.26 / 1.27** · [使用说明](docs/usage_CN.md) · [规则参考](docs/rules_CN.md) · [示例](examples/README_CN.md)
 
 ## 安装
 
-使用 Go 1.26 或 1.27 安装 **beta-0.2** 预发布版本：
+使用 Go 1.25、1.26 或 1.27 安装 **beta-0.2** 预发布版本：
 
 ```sh
 go install github.com/kakj-go/go-inject/cmd/go-inject@v0.1.0-beta.2

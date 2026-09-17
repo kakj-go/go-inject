@@ -12,8 +12,8 @@ import (
 
 func vendorFixture(t *testing.T) *fixture {
 	return newFixture(t, map[string]string{
-		"go.mod":        "module example.test/app\n\ngo 1.26.0\nrequire example.test/dep v1.0.0\nreplace example.test/dep => ./dep\n",
-		"dep/go.mod":    "module example.test/dep\n\ngo 1.26.0\n",
+		"go.mod":        "module example.test/app\n\ngo 1.25.0\nrequire example.test/dep v1.0.0\nreplace example.test/dep => ./dep\n",
+		"dep/go.mod":    "module example.test/dep\n\ngo 1.25.0\n",
 		"dep/dep.go":    "package dep\nfunc Value()int{return 1}\n",
 		"main.go":       "package main\nimport \"example.test/dep\"\nfunc main(){println(dep.Value())}\n",
 		"inject.go":     "//go:build goinject || generate\n\npackage main\n//go:generate " + strconv.Quote(cliBinary) + " vendor .\nimport _ \"example.test/app/hooks\"\n",

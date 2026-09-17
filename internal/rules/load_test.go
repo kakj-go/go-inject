@@ -35,10 +35,10 @@ func newRulesFixture(t *testing.T, imports string) ruleFixture {
 		t.Setenv(name, value)
 	}
 	dir := t.TempDir()
-	putRule(t, dir, "go.mod", "module example.com/app\ngo 1.26.0\nrequire example.com/provider v1.0.0\nreplace example.com/provider => ./provider\n")
+	putRule(t, dir, "go.mod", "module example.com/app\ngo 1.25.0\nrequire example.com/provider v1.0.0\nreplace example.com/provider => ./provider\n")
 	putRule(t, dir, "main.go", "package main\nfunc main() {}\n")
 	putRule(t, dir, "goinject.go", "//go:build goinject\n\npackage main\nimport (\n"+imports+"\n)\n")
-	putRule(t, dir, "provider/go.mod", "module example.com/provider\ngo 1.26.0\n")
+	putRule(t, dir, "provider/go.mod", "module example.com/provider\ngo 1.25.0\n")
 	e, err := project.Environment(context.Background(), dir)
 	if err != nil {
 		t.Fatal(err)
@@ -90,6 +90,34 @@ func TestUnapplicableTargetsDoNotEvaluateUnknownVersion(t *testing.T) {
 	}
 	if len(set.Files) != 0 || len(set.Statuses) != 1 || set.Statuses[0].State != "not-applicable" {
 		t.Fatalf("set=%+v", set)
+	}
+}
+
+func TestLoadPackageLevelTargetSelectsAndKeepsFileEmpty(t *testing.T) {
+	f := newRulesFixture(t, `_ "example.com/provider/hooks"`)
+	source := "//inject:example.com/library\n//inject:id pkg-rule\npackage hooks\nfunc F() {}\n"
+	putRule(t, f.dir, "provider/hooks/rule.go", source)
+	set, err := f.load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(set.Files) != 1 {
+		t.Fatalf("files: %+v", set.Files)
+	}
+	got := set.Files[0]
+	if got.Target != "example.com/library" || got.File != "" {
+		t.Fatalf("target=%q file=%q", got.Target, got.File)
+	}
+	if set.Statuses[0].State != "selected" || set.Statuses[0].Target != "example.com/library" {
+		t.Fatalf("statuses: %+v", set.Statuses)
+	}
+}
+
+func TestLoadPackageLevelTargetWithoutDomainWordIsRejected(t *testing.T) {
+	f := newRulesFixture(t, `_ "example.com/provider/hooks"`)
+	putRule(t, f.dir, "provider/hooks/rule.go", "//inject:typo\npackage hooks\nfunc F() {}\n")
+	if _, err := f.load(); err == nil {
+		t.Fatal("accepted bare word package target")
 	}
 }
 

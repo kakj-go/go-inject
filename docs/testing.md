@@ -40,7 +40,7 @@ Gin also verifies repeated vendor generation, ordinary `go build/test -mod=vendo
 
 ## Release validation contract
 
-Supported release targets are Linux, Windows, and macOS on amd64 and arm64, using Go 1.26 and 1.27. CI fixes the patch versions to `1.26.8` and `1.27.1`; the [script guide](../scripts/README.md) lists native runner labels, C compilers, race coverage, packaging, and artifact validation. Cross-compiling a binary alone does not prove runtime correctness. Check the release's actual CI results for evidence. This document specifies coverage and does not claim that every matrix job has already passed.
+Supported release targets are Linux, Windows, and macOS on amd64 and arm64, using Go 1.25, 1.26, and 1.27. CI fixes the patch versions to `1.25.8`, `1.26.8`, and `1.27.1`; the [script guide](../scripts/README.md) lists native runner labels, C compilers, race coverage, packaging, and artifact validation. Cross-compiling a binary alone does not prove runtime correctness. Check the release's actual CI results for evidence. This document specifies coverage and does not claim that every matrix job has already passed.
 
 Unit and end-to-end checks must cover:
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/kakj-go/go-inject/internal/process"
 	"github.com/kakj-go/go-inject/internal/project"
+	"github.com/kakj-go/go-inject/internal/rules"
 	"github.com/kakj-go/go-inject/internal/vendorstate"
 )
 
@@ -74,7 +75,7 @@ func Vendor(ctx context.Context, dir string, args []string) error {
 		}
 		sessions = append(sessions, s)
 		for _, rule := range s.Rules {
-			target := strings.TrimSuffix(rule.Target, "/"+filepath.Base(rule.Target))
+			target := rules.TargetPackage(rule.Target)
 			p := s.Packages[target]
 			if rule.Target == "main" || p == nil || p.Standard || p.Module == nil || p.Module.Main {
 				return fmt.Errorf("vendor does not support target %s; use go-inject build", rule.Target)

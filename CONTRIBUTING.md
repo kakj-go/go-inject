@@ -2,7 +2,7 @@
 
 [简体中文](CONTRIBUTING_CN.md)
 
-Use Go 1.26 or 1.27. Start with [architecture](docs/architecture.md), the [rule contract](docs/rules.md), and [testing](docs/testing.md).
+Use Go 1.25, 1.26, or 1.27. Start with [architecture](docs/architecture.md), the [rule contract](docs/rules.md), and [testing](docs/testing.md).
 
 Before editing, inspect `git status`. Preserve unrelated work. Prefer the simplest implementation satisfying the contract and existing Go dependencies over a new framework. Keep backend source files below 2,000 lines. Changes to architecture boundaries need matching documentation.
 

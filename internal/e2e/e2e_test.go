@@ -96,7 +96,7 @@ func newFixture(t *testing.T, files map[string]string) *fixture {
 		t.Fatal(err)
 	}
 	if files["go.mod"] == "" {
-		files["go.mod"] = "module example.test/app\n\ngo 1.26.0\n"
+		files["go.mod"] = "module example.test/app\n\ngo 1.25.0\n"
 	}
 	for name, contents := range files {
 		f.write(name, contents)

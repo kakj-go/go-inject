@@ -7,8 +7,8 @@ import (
 )
 
 func TestRuntimeGoroutineFieldPropagation(t *testing.T) {
-	if !strings.HasPrefix(runtime.Version(), "go1.26.") && !strings.HasPrefix(runtime.Version(), "go1.27.") {
-		t.Skipf("runtime fixture is explicitly defined for Go 1.26/1.27, current toolchain %s", runtime.Version())
+	if !strings.HasPrefix(runtime.Version(), "go1.24.") && !strings.HasPrefix(runtime.Version(), "go1.25.") && !strings.HasPrefix(runtime.Version(), "go1.26.") && !strings.HasPrefix(runtime.Version(), "go1.27.") {
+		t.Skipf("runtime fixture is explicitly defined for Go 1.24-1.27, current toolchain %s", runtime.Version())
 	}
 	files := map[string]string{
 		"main.go": `package main
@@ -40,9 +40,11 @@ func GoInjectE2ESet(value uint64){getg().m.curg.goInjectE2EMarker=value}
 func GoInjectE2EGet()uint64{return getg().m.curg.goInjectE2EMarker}
 `,
 	}
-	// The two explicit fixtures use the verified five-parameter newproc1
-	// signature. Build constraints select the toolchain's implementation.
-	for _, version := range []struct{ name, tag string }{{"126", "go1.26 && !go1.27"}, {"127", "go1.27"}} {
+	// The explicit fixtures use the verified five-parameter newproc1
+	// signature (Go 1.24.6+ backported it alongside coroutines; earlier
+	// patch releases and Go 1.23 take three parameters and fail loudly at
+	// binding time). Build constraints select the toolchain's file.
+	for _, version := range []struct{ name, tag string }{{"124", "go1.24 && !go1.25"}, {"125", "go1.25 && !go1.26"}, {"126", "go1.26 && !go1.27"}, {"127", "go1.27"}} {
 		files["hooks/proc"+version.name+".go"] = "//go:build " + version.tag + "\n\n" + `//inject:runtime/proc.go
 //inject:id goroutine-propagation
 package hooks

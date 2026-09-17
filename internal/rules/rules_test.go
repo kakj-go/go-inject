@@ -25,10 +25,25 @@ func TestHeader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f.Target != "example.com/lib/file.go" || f.ID != "api" {
+	if f.Target != "example.com/lib" || f.TargetFile != "file.go" || f.ID != "api" {
 		t.Fatalf("%+v", f)
 	}
 	for _, src := range []string{"//inject:version >=v1.0.0\npackage p", "//inject:../bad.go\npackage p", "//inject:typo\npackage p", "//inject:main\n//inject:main\npackage p"} {
+		if _, err := Header("bad.go", []byte(src)); err == nil {
+			t.Errorf("accepted %s", src)
+		}
+	}
+}
+
+func TestHeaderPackageTarget(t *testing.T) {
+	f, err := Header("rule.go", []byte("//inject:github.com/gin-gonic/gin\npackage hooks\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Target != "github.com/gin-gonic/gin" || f.TargetFile != "" {
+		t.Fatalf("%+v", f)
+	}
+	for _, src := range []string{"//inject:example.com/lib\n//inject:example.com/lib2\npackage p", "//inject:-bad/pkg\npackage p", "//inject:a//b\npackage p"} {
 		if _, err := Header("bad.go", []byte(src)); err == nil {
 			t.Errorf("accepted %s", src)
 		}
@@ -39,7 +54,7 @@ func TestHeaderDoesNotConsumeDeclarationDirectives(t *testing.T) {
 	for _, directive := range []string{"//inject:order 10", "//inject:add", "//inject:main"} {
 		source := []byte("//inject:example.com/lib/file.go\npackage hooks\n" + directive + "\nfunc F() {}\n")
 		f, err := Header("hooks.go", source)
-		if err != nil || f.Target != "example.com/lib/file.go" {
+		if err != nil || f.Target != "example.com/lib" || f.TargetFile != "file.go" {
 			t.Fatalf("declaration directive %q changed header: %+v, %v", directive, f, err)
 		}
 	}

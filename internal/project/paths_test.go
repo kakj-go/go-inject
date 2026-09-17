@@ -10,11 +10,11 @@ import (
 
 func TestWorkspaceAliasesUseConsistentDirectoryAndEnvironment(t *testing.T) {
 	dir := fixture(t)
-	writeFixture(t, filepath.Join(dir, "app", "go.mod"), "module example.com/application\ngo 1.26.0\n")
+	writeFixture(t, filepath.Join(dir, "app", "go.mod"), "module example.com/application\ngo 1.25.0\n")
 	writeFixture(t, filepath.Join(dir, "app", "main.go"), "package main\nimport _ \"example.com/provider/rules\"\nfunc main() {}\n")
-	writeFixture(t, filepath.Join(dir, "provider", "go.mod"), "module example.com/provider\ngo 1.26.0\n")
+	writeFixture(t, filepath.Join(dir, "provider", "go.mod"), "module example.com/provider\ngo 1.25.0\n")
 	writeFixture(t, filepath.Join(dir, "provider", "rules", "rules.go"), "package actualrules\n")
-	writeFixture(t, filepath.Join(dir, "go.work"), "go 1.26.0\nuse (\n./app\n./provider\n)\n")
+	writeFixture(t, filepath.Join(dir, "go.work"), "go 1.25.0\nuse (\n./app\n./provider\n)\n")
 	alias := filepath.Join(t.TempDir(), "workspace-alias")
 	if err := os.Symlink(dir, alias); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)

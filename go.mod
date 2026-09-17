@@ -1,6 +1,6 @@
 module github.com/kakj-go/go-inject
 
-go 1.26.0
+go 1.25.0
 
 require (
 	github.com/dave/dst v0.27.4

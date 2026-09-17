@@ -13,6 +13,15 @@ A template file names its target package and source file before `package`:
 package hook
 ```
 
+A template may instead name only the target package, which matches declarations in any file of that package instead of one named source file:
+
+```go
+//inject:github.com/gin-gonic/gin
+package hook
+```
+
+Package targets need a slash or a dotted first element (`example.com/lib`, `net/http`); bare single words stay invalid so typos remain loud. Matching is still exact: a function or method name must resolve to exactly one declaration in the package.
+
 Use import paths, including module major-version suffixes, rather than filesystem paths. `//inject:id` and `//inject:version` are optional; a version constraint requires an explicit ID. IDs use lowercase letters, digits, `.`, `_`, `/`, and `-`. Unknown instructions are errors. Go build constraints select files for the actual Go version, platform, and tags.
 
 Version constraints are whitespace-separated comparisons joined with AND, for example `>=v1.11.0 <v1.12.0`. The supported comparison operators are `=`, `<`, `<=`, `>`, and `>=`. Use Go semantic versions with a `v` prefix. This is not an npm range language: use explicit comparisons instead of `^`, `~`, or `||`.

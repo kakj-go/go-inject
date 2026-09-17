@@ -22,9 +22,9 @@ import (
 
 type Status struct{ Rule, Target, Version, State, Reason string }
 type File struct {
-	Path, Package, Module, Target, ID, Version string
-	Active                                     bool
-	Source                                     []byte
+	Path, Package, Module, Target, TargetFile, ID, Version string
+	Active                                                 bool
+	Source                                                 []byte
 }
 type Set struct {
 	Files    []rewrite.Rule
@@ -82,9 +82,20 @@ func Header(filename string, data []byte) (File, error) {
 				if strings.ContainsAny(path.Base(v), "*?[]:@") {
 					return f, fmt.Errorf("%s: invalid target filename %q", filename, v)
 				}
-				f.Target = v
+				f.Target = path.Dir(v)
+				f.TargetFile = path.Base(v)
 			default:
-				return f, fmt.Errorf("%s: unknown file directive //inject:%s", filename, v)
+				// Package-level target: declarations match anywhere in the
+				// target package instead of one named file. Bare single words
+				// without a domain dot stay invalid so typos remain loud.
+				if err := project.ValidateImportPath(v); err != nil {
+					return f, fmt.Errorf("%s: invalid package target %q: %w", filename, v, err)
+				}
+				first := strings.SplitN(v, "/", 2)[0]
+				if !strings.Contains(v, "/") && !strings.Contains(first, ".") {
+					return f, fmt.Errorf("%s: invalid package target %q: use an import path or a package/file.go target", filename, v)
+				}
+				f.Target = v
 			}
 			if seen[key] {
 				return f, fmt.Errorf("%s: duplicate inject:%s directive", filename, key)
@@ -134,11 +145,14 @@ func VersionMatches(version, constraint string) (bool, error) {
 	return matches, nil
 }
 
+// TargetPackage normalizes a rule target to its package import path. Targets
+// are stored as "main" or a bare package path; file targets keep their file
+// name in File.TargetFile instead.
 func TargetPackage(target string) string {
 	if target == "main" {
 		return "main"
 	}
-	return path.Dir(target)
+	return target
 }
 
 func Registrations(env project.Env, dir string, flags []string, tests bool) ([]string, error) {
@@ -345,7 +359,7 @@ func Load(ctx context.Context, env project.Env, root *project.Package, business 
 			return nil, fmt.Errorf("rule %s: target %s version %q: expected exactly one applicable implementation, got %d; sources: %s", key, target, version, len(selected), strings.Join(paths, ", "))
 		}
 		f := selected[0]
-		s.Files = append(s.Files, rewrite.Rule{Path: f.Path, Target: f.Target, Provider: f.Package, ID: key, Source: f.Source})
+		s.Files = append(s.Files, rewrite.Rule{Path: f.Path, Target: f.Target, File: f.TargetFile, Provider: f.Package, ID: key, Source: f.Source})
 		s.Statuses = append(s.Statuses, Status{Rule: key, Target: target, Version: version, State: "selected"})
 	}
 	return s, nil

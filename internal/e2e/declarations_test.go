@@ -11,19 +11,35 @@ func TestGroupedAddedDeclarationsKeepTheirGoValues(t *testing.T) {
 package hooks
 //inject:add
 const (
- First=iota+10
- Second
- Third
+	 First=iota+10
+	 Second
+	 Third
 )
 //inject:add
 var (
- Sum=First+Second+Third
- Expected=Sum+9
+	 Sum=First+Second+Third
+	 Expected=Sum+9
 )
 func Value()(out int){defer func(){out=Expected}();return 0}
 `,
 	})
 	name := "groups-app" + exeSuffix()
+	f.cli("build", "-o", name, ".")
+	f.run(name, "42")
+}
+
+func TestPackageLevelTargetMatchesDeclarationInAnyFile(t *testing.T) {
+	f := newFixture(t, map[string]string{
+		"main.go":      "package main\nimport \"example.test/app/lib\"\nfunc main(){println(lib.Sum())}\n",
+		"inject.go":    registration,
+		"lib/lib.go":   "package lib\nfunc Sum()int{return 0}\n",
+		"lib/other.go": "package lib\nfunc unused(){}\n",
+		"hooks/pkg.go": `//inject:example.test/app/lib
+package hooks
+func Sum()(out int){defer func(){out=42}();return 0}
+`,
+	})
+	name := "package-target-app" + exeSuffix()
 	f.cli("build", "-o", name, ".")
 	f.run(name, "42")
 }

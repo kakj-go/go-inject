@@ -83,8 +83,8 @@ func Environment(ctx context.Context, dir string) (Env, error) {
 			return e, fmt.Errorf("go-inject requires a Go module or workspace")
 		}
 	}
-	if !strings.HasPrefix(e.GOVERSION, "go1.26.") && !strings.HasPrefix(e.GOVERSION, "go1.27.") {
-		return e, fmt.Errorf("unsupported Go toolchain %s; supported series: Go 1.26 and 1.27", e.GOVERSION)
+	if !strings.HasPrefix(e.GOVERSION, "go1.24.") && !strings.HasPrefix(e.GOVERSION, "go1.25.") && !strings.HasPrefix(e.GOVERSION, "go1.26.") && !strings.HasPrefix(e.GOVERSION, "go1.27.") {
+		return e, fmt.Errorf("unsupported Go toolchain %s; supported series: Go 1.24 through 1.27", e.GOVERSION)
 	}
 	if err != nil {
 		return e, err
