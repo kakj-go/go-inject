@@ -62,7 +62,7 @@ def main() -> None:
         for name in ("main.go", "main_test.go", "inject.go"):
             shutil.copyfile(ROOT / "examples" / "external" / name, app / name)
         (app / "go.mod").write_text(
-            "module example.test/releasecheck\n\ngo 1.26.0\n\nrequire github.com/gin-gonic/gin v1.12.0\n",
+            "module example.test/releasecheck\n\ngo 1.25.0\n\nrequire github.com/gin-gonic/gin v1.12.0\n",
             encoding="utf-8",
         )
         run(["go", "get", MODULE + "/examples/rules@" + args.ref], app)
