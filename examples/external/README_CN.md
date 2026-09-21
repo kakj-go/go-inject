@@ -24,7 +24,7 @@ PASS external: module rules, aggregate, deduplication, selected Gin variant
 本地 `replace => ../rules` 用于开发仓库中的源码。使用已发布模块时去掉该 replacement，再执行：
 
 ```sh
-go get github.com/kakj-go/go-inject/examples/rules@v0.1.0-beta.2
+go get github.com/kakj-go/go-inject/examples/rules@v0.1.0-beta.3
 go mod tidy
 ```
 

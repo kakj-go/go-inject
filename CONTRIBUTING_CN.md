@@ -27,6 +27,6 @@ Windows 使用 `.exe` 文件名。嵌套示例是独立模块，根目录 `go te
 
 ## 发布
 
-当前 beta 展示名称为 `beta-0.2`，版本为 `v0.1.0-beta.2`。工具安装路径是 `github.com/kakj-go/go-inject/cmd/go-inject`。嵌套规则模块单独使用 `examples/rules/v0.1.0-beta.2` 标签，使用方依赖 `github.com/kakj-go/go-inject/examples/rules v0.1.0-beta.2`。
+当前 beta 展示名称为 `beta-0.3`，版本为 `v0.1.0-beta.3`。工具安装路径是 `github.com/kakj-go/go-inject/cmd/go-inject`。嵌套规则模块单独使用 `examples/rules/v0.1.0-beta.3` 标签，使用方依赖 `github.com/kakj-go/go-inject/examples/rules v0.1.0-beta.3`。
 
 同步更新 [CHANGELOG.md](CHANGELOG.md)、安装示例与发布默认版本。在最终 master 提交上通过源码 CI 和按 SHA 的干净远程安装验证；运行发行包工作流，要求十二项原生二进制与工具链组合全部通过。在同一提交为两个模块创建标签，不移动已有标签；将实际受测的归档与校验和上传到预发布草稿，验证按标签安装后再发布。发布后复验公开下载。

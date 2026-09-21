@@ -8,10 +8,10 @@ Intercept Go functions with ordinary Go templates. Use the native Go toolchain t
 
 ## Install
 
-Install the **beta-0.2** prerelease with Go 1.25, 1.26, or 1.27:
+Install the **beta-0.3** prerelease with Go 1.25, 1.26, or 1.27:
 
 ```sh
-go install github.com/kakj-go/go-inject/cmd/go-inject@v0.1.0-beta.2
+go install github.com/kakj-go/go-inject/cmd/go-inject@v0.1.0-beta.3
 go-inject version
 ```
 

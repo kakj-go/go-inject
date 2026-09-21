@@ -60,12 +60,12 @@ def write_archive(destination: Path, binary: Path, epoch: int) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--version", default="v0.1.0-beta.2")
+    parser.add_argument("--version", default="v0.1.0-beta.3")
     parser.add_argument("--commit")
     parser.add_argument("--output", type=Path, default=ROOT / "dist")
     args = parser.parse_args()
     if not VERSION_PATTERN.fullmatch(args.version):
-        parser.error("version must be a Go semantic release version such as v0.1.0-beta.2")
+        parser.error("version must be a Go semantic release version such as v0.1.0-beta.3")
     commit = args.commit or command("git", "rev-parse", "HEAD")
     if re.fullmatch(r"[0-9a-f]{40}", commit) is None:
         parser.error("commit must be the full lowercase Git commit ID")

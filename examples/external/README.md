@@ -24,7 +24,7 @@ PASS external: module rules, aggregate, deduplication, selected Gin variant
 The local `replace => ../rules` is for developing this checkout. To consume the published module, remove that replacement and run:
 
 ```sh
-go get github.com/kakj-go/go-inject/examples/rules@v0.1.0-beta.2
+go get github.com/kakj-go/go-inject/examples/rules@v0.1.0-beta.3
 go mod tidy
 ```
 

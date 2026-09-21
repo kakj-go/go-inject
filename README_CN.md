@@ -8,10 +8,10 @@
 
 ## 安装
 
-使用 Go 1.25、1.26 或 1.27 安装 **beta-0.2** 预发布版本：
+使用 Go 1.25、1.26 或 1.27 安装 **beta-0.3** 预发布版本：
 
 ```sh
-go install github.com/kakj-go/go-inject/cmd/go-inject@v0.1.0-beta.2
+go install github.com/kakj-go/go-inject/cmd/go-inject@v0.1.0-beta.3
 go-inject version
 ```
 

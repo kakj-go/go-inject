@@ -5,7 +5,7 @@
 Module: `github.com/kakj-go/go-inject/examples/rules`
 
 ```sh
-go get github.com/kakj-go/go-inject/examples/rules@v0.1.0-beta.2
+go get github.com/kakj-go/go-inject/examples/rules@v0.1.0-beta.3
 ```
 
 Enable packages through a `//go:build goinject` registration file in the application entry:
@@ -33,4 +33,4 @@ The aggregate packages include ordinary `doc.go` files so they remain valid pack
 
 Consumers in this checkout use `replace ... => ../rules`. Edit these templates and rebuild a consumer to test the changes. The [example runner](../README.md#run-automated-checks) validates the generated behavior.
 
-The nested module release tag is `examples/rules/v0.1.0-beta.2`. The dependency version used in `go.mod` is `v0.1.0-beta.2`. The engine and this reusable module have separate module identities and release tags.
+The nested module release tag is `examples/rules/v0.1.0-beta.3`. The dependency version used in `go.mod` is `v0.1.0-beta.3`. The engine and this reusable module have separate module identities and release tags.

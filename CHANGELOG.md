@@ -1,5 +1,19 @@
 # Changelog / 更新记录
 
+## beta-0.3 — v0.1.0-beta.3 (2026-09-21)
+
+- Package-level injection targets: a template header naming only the target package matches declarations in any file of that package, enabling otelc-style trace rules over packages such as `net/http`. Bare single-word targets stay invalid so typos remain loud.
+- Self `//go:linkname X X` symbol renames are valid on value declarations; cross-package linkname bridges remain function-only.
+- Hygienic renaming keeps struct-literal field keys spelled as written while template parameters and locals rename; map-literal keys rename normally.
+- Legacy modules published without `go.mod` (`github.com/pkg/errors` and friends) resolve through the module proxy instead of a broken directory replacement.
+- Supported toolchain series widened to Go 1.24 through 1.27. The module now requires Go 1.25, and CI, archive validation, and install checks cover Go 1.25.8, 1.26.8, and 1.27.1.
+
+- 包级注入目标：模板头只写目标包时，声明在包内任意文件中匹配，支撑 otelc trace 对 `net/http` 等整包注入；单词目标仍然非法，避免拼写错误被静默吞掉。
+- 自引用 `//go:linkname X X` 的符号重命名可用于值声明；跨包 linkname 桥接仍仅限函数。
+- 模板参数与局部变量改名时保持结构体字面量字段名的原始拼写；map 字面量键正常改名。
+- 无 `go.mod` 的历史模块（如 `github.com/pkg/errors`）改由模块代理解析，不再被目录替换破坏。
+- 支持的工具链系列扩展到 Go 1.24–1.27。模块要求 Go 1.25；CI、归档验证与安装检查覆盖 Go 1.25.8、1.26.8、1.27.1。
+
 ## beta-0.2 — v0.1.0-beta.2 (2026-09-13)
 
 - Native `go build -toolexec="go-inject"` and `go test`; vendor generation through `go generate`.

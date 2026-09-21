@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/gin-gonic/gin v1.11.0
-	github.com/kakj-go/go-inject/examples/rules v0.1.0-beta.2
+	github.com/kakj-go/go-inject/examples/rules v0.1.0-beta.3
 )
 
 require (

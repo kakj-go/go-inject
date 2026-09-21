@@ -5,7 +5,7 @@
 模块路径：`github.com/kakj-go/go-inject/examples/rules`
 
 ```sh
-go get github.com/kakj-go/go-inject/examples/rules@v0.1.0-beta.2
+go get github.com/kakj-go/go-inject/examples/rules@v0.1.0-beta.3
 ```
 
 在应用入口的 `//go:build goinject` 登记文件中启用规则包：
@@ -33,4 +33,4 @@ HTTP 修改请求头及返回状态，便于直接观察效果，不是生产追
 
 仓库使用方通过 `replace ... => ../rules` 指向本地模块。修改模板后重新构建使用方，即可验证变化。[示例脚本](../README_CN.md#自动验证)检查实际生成行为。
 
-嵌套模块发布标签是 `examples/rules/v0.1.0-beta.2`，`go.mod` 中使用的依赖版本是 `v0.1.0-beta.2`。引擎与可复用规则模块具有独立模块身份及发布标签。
+嵌套模块发布标签是 `examples/rules/v0.1.0-beta.3`，`go.mod` 中使用的依赖版本是 `v0.1.0-beta.3`。引擎与可复用规则模块具有独立模块身份及发布标签。
